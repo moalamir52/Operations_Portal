@@ -1,290 +1,203 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import * as XLSX from "xlsx";
-import DailyBookingReport from "./report.tsx";
 
-export default function CarSearchTool() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [data, setData] = useState([]);
-  const [results, setResults] = useState([]);
-  const [showOnlyMismatch, setShowOnlyMismatch] = useState(false);
-  const [showReturnedRepairedOnly, setShowReturnedRepairedOnly] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showDailyReport, setShowDailyReport] = useState(false);
-  const [maintenanceData, setMaintenanceData] = useState([]);
-  const tableRef = useRef(null);
+function ReminderDue14Days() {
+  const [dueContracts, setDueContracts] = useState([]);
 
-  const normalize = (str) => str?.toString().toLowerCase().replace(/\s+/g, "").trim();
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
 
-  useEffect(() => {
-    const fetchSheet = async (url) => {
-      const response = await fetch(url);
-      const text = await response.text();
-      const rows = text.split("\n").map((r) => r.split(","));
-      const headers = rows.find((row) => row.some((c) => c.trim() !== ""));
-      const values = rows.slice(rows.indexOf(headers) + 1);
-      return values
-        .filter((r) => r.length === headers.length && r.some((c) => c.trim() !== ""))
-        .map((r) => Object.fromEntries(r.map((c, i) => [headers[i]?.trim(), c?.trim()])));
+    reader.onload = (evt) => {
+      const bstr = evt.target.result;
+      const workbook = XLSX.read(bstr, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      const processed = jsonData.map((row) => {
+        const dropRaw = row["Drop-off Date"];
+        let dropDate;
+
+        if (typeof dropRaw === "number") {
+          const parsed = XLSX.SSF.parse_date_code(dropRaw);
+          dropDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+        } else if (typeof dropRaw === "string") {
+          const parts = dropRaw.split(/[\s/:.-]+/);
+          if (parts.length >= 3) {
+            const [day, month, year] = parts.map((p) => parseInt(p));
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              dropDate = new Date(year, month - 1, day);
+            }
+          }
+        }
+
+        if (!dropDate || isNaN(dropDate)) return null;
+
+        const today = new Date();
+        const drop = new Date(dropDate.getFullYear(), dropDate.getMonth(), dropDate.getDate());
+        const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const diff = Math.floor((now - drop) / (1000 * 60 * 60 * 24));
+
+        return {
+          contract: row["Contract No."],
+          customer: row["Customer"],
+          dropDate: drop.toLocaleDateString("en-GB"),
+          days: diff,
+          closedBy: row["Closed By"],
+          branch: row["Pick-up Branch"] || "",
+        };
+      }).filter(Boolean);
+
+      const due = processed.filter((r) => r.days === 13);
+      setDueContracts(due);
     };
 
-    const loadSheets = async () => {
-      try {
-        const [mainData, maintenance] = await Promise.all([
-          fetchSheet("https://docs.google.com/spreadsheets/d/1XwBko5v8zOdTdv-By8HK_DvZnYT2T12mBw_SIbCfMkE/export?format=csv&gid=769459790"),
-          fetchSheet("https://docs.google.com/spreadsheets/d/1v4rQWn6dYPVQPd-PkhvrDNgKVnexilrR2XIUVa5RKEM/export?format=csv&gid=0")
-        ]);
-        setData(mainData);
-        setResults(mainData);
-        setMaintenanceData(maintenance);
-      } catch (err) {
-        console.error(err);
-        alert("Error fetching Google Sheets");
-      }
-    };
-
-    loadSheets();
-  }, []);
-
-  const getAnalytics = () => {
-    let invygoCount = 0;
-    let dailyCount = 0;
-    let monthlyCount = 0;
-    let leasingCount = 0;
-    const otherTypes = {};
-    let mismatchCount = 0;
-
-    data.forEach((row) => {
-      const booking = (row["Booking Number"] || "").toLowerCase();
-      if (!booking) return;
-      if (!isNaN(Number(booking))) invygoCount++;
-      else if (booking.includes("daily")) dailyCount++;
-      else if (booking.includes("monthly")) monthlyCount++;
-      else if (booking.includes("leasing")) leasingCount++;
-      else otherTypes[booking] = (otherTypes[booking] || 0) + 1;
-
-      const ejar = normalize(row["EJAR"]);
-      const invygo = normalize(row["INVYGO"]);
-      if (ejar && invygo && ejar !== invygo) {
-        mismatchCount++;
-      }
-    });
-
-    return {
-      total: results.length,
-      invygoCount,
-      dailyCount,
-      monthlyCount,
-      leasingCount,
-      otherTypes,
-      mismatchCount,
-    };
+    reader.readAsBinaryString(file);
   };
 
-  const analytics = getAnalytics();
+  const handleSendEmail = () => {
+    const header = `Dear Team,%0D%0A%0D%0AThe following contracts were closed 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(🔔 NOTE : If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
+    const tableHeader = `No.  Contract No.           Drop-off Date   Days  Branch%0D%0A`;
+    const tableBody = dueContracts.map((row, i) => {
+      const num = (i + 1).toString().padEnd(4, " ");
+      const contract = (row.contract || "").padEnd(22, " ");
+      const drop = (row.dropDate || "").padEnd(16, " ");
+      const days = row.days.toString().padEnd(6, " ");
+      const branch = (row.branch || "").padEnd(15, " ");
+      return `${num}${contract}${drop}${days}${branch}`;
+    }).join("%0D%0A");
 
-  const handleGlobalSearch = () => {
-    const keyword = normalize(searchTerm);
-    const filtered = data.filter((row) =>
-      Object.values(row).some((val) => normalize(val).includes(keyword))
-    );
-    setResults(filtered);
+    const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
+
+    const to = "dubaiair@iyelo.com,dubaiair2@iyelo.com";
+    const cc = "a.naseer@iyelo.com";
+
+    const mailtoLink = `mailto:${to}?cc=${cc}&subject=Reminder: Contracts Closed 13 Days Ago&body=${header}${tableHeader}${tableBody}${footer}`;
+    window.location.href = mailtoLink;
   };
 
-  const resetFilters = () => {
-    setShowOnlyMismatch(false);
-    setShowReturnedRepairedOnly(false);
-    setResults(data);
+  const styles = {
+    container: {
+      fontFamily: "Arial",
+      backgroundColor: "#fefce8",
+      padding: "40px 20px",
+      minHeight: "100vh",
+    },
+    topBar: {
+      backgroundColor: "#FFD700",
+      border: "2px solid #6a1b9a",
+      color: "#333",
+      borderRadius: "16px",
+      padding: "15px 25px",
+      margin: "0 auto 30px",
+      maxWidth: "950px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      boxShadow: "0 4px 12px rgba(106, 27, 154, 0.2)",
+    },
+    backBtn: {
+      backgroundColor: "#6a1b9a",
+      color: "#fff",
+      padding: "8px 14px",
+      borderRadius: "8px",
+      fontWeight: "bold",
+      textDecoration: "none",
+      fontSize: "14px",
+    },
+    title: {
+      fontSize: "18px",
+      fontWeight: "bold",
+    },
+    content: {
+      maxWidth: "1000px",
+      margin: "0 auto",
+    },
+    input: {
+      marginBottom: "20px",
+      padding: "8px",
+      border: "1px solid #aaa",
+      borderRadius: "4px",
+      width: "100%",
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      marginBottom: "20px",
+    },
+    th: {
+      backgroundColor: "#ede7f6",
+      color: "#6a1b9a",
+      padding: "10px",
+      border: "1px solid #ccc",
+      textAlign: "center",
+    },
+    td: {
+      padding: "10px",
+      border: "1px solid #eee",
+      textAlign: "center",
+      color: "#333",
+    },
+    emailBtn: {
+      backgroundColor: "#6a1b9a",
+      color: "#fff",
+      padding: "12px 20px",
+      fontWeight: "bold",
+      border: "none",
+      borderRadius: "6px",
+      cursor: "pointer",
+    },
   };
-
-  const applyFilters = (mismatchOnly, repairedOnly) => {
-    let filtered = [...data];
-
-    if (mismatchOnly) {
-      filtered = filtered.filter((row) => {
-        const booking = row["Booking Number"] || "";
-        const isNumericBooking = !isNaN(Number(booking));
-        const ejar = normalize(row["EJAR"]);
-        const invygo = normalize(row["INVYGO"]);
-        return isNumericBooking && ejar && invygo && ejar !== invygo;
-      });
-    }
-
-    if (repairedOnly) {
-      filtered = filtered.filter((row) => {
-        const booking = row["Booking Number"] || "";
-        const isNumericBooking = !isNaN(Number(booking));
-        const ejar = normalize(row["EJAR"]);
-        const invygo = normalize(row["INVYGO"]);
-        const maintenance = maintenanceData.find(
-          (m) => m["Vehicle"] === row["INVYGO"]
-        );
-        const isRepairDone = maintenance && maintenance["Date IN"];
-        return isRepairDone && isNumericBooking && ejar !== invygo;
-      });
-    }
-
-    setResults(filtered);
-  };
-
-  const exportToExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(results);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Filtered Results");
-    const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `YELO_Report_${dateStr}.xlsx`);
-  };
-
-  const switchBackMismatches = results.filter((row) => {
-    const booking = row["Booking Number"] || "";
-    const isNumericBooking = !isNaN(Number(booking));
-    const ejar = normalize(row["EJAR"]);
-    const invygo = normalize(row["INVYGO"]);
-    return isNumericBooking && ejar && invygo && ejar !== invygo;
-  }).length;
-
-  const headers = [
-    "Contract No.",
-    "Booking Number",
-    "Customer",
-    "Pick-up Branch",
-    "EJAR",
-    "Model ( Ejar )",
-    "INVYGO",
-    "Model",
-    "Pick-up Date",
-  ];
-
-  const Modal = ({ title, children, onClose }) => (
-    <div style={{
-      position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-      backgroundColor: "rgba(0, 0, 0, 0.5)", display: "flex",
-      alignItems: "center", justifyContent: "center", zIndex: 9999
-    }}>
-      <div style={{ background: "white", padding: 20, borderRadius: 8, minWidth: 300 }}>
-        <h3>{title}</h3>
-        <div>{children}</div>
-        <button onClick={onClose} style={{ marginTop: 10 }}>❌ Cancel</button>
-      </div>
-    </div>
-  );
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ color: "#f6b504" }}>YELO Car Rental Dashboard - Business Bay Team                        - By Mo.Alamir</h1>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="🔍 Search across all fields..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleGlobalSearch()}
-          style={{ padding: 8, minWidth: 250 }}
-        />
-        <button onClick={handleGlobalSearch}>🔍 Search</button>
-        <button onClick={resetFilters}>♻ Reset Filters</button>
-        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <input
-            type="checkbox"
-            checked={showOnlyMismatch}
-            onChange={() => {
-              const newValue = !showOnlyMismatch;
-              setShowOnlyMismatch(newValue);
-              applyFilters(newValue, showReturnedRepairedOnly);
-            }}
-          />
-          Show Mismatched Only ({switchBackMismatches})
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <input
-            type="checkbox"
-            checked={showReturnedRepairedOnly}
-            onChange={() => {
-              const newValue = !showReturnedRepairedOnly;
-              setShowReturnedRepairedOnly(newValue);
-              applyFilters(showOnlyMismatch, newValue);
-            }}
-          />
-          Show Ready to Switch Back
-        </label>
-        <button onClick={exportToExcel}>📤 Export</button>
-        <button onClick={() => setShowAnalytics(true)}>📊 Show Analytics</button>
-        <button onClick={() => setShowDailyReport(true)}>📅 Daily Report</button>
+    <div style={styles.container}>
+      <div style={styles.topBar}>
+        <div style={styles.title}>📢 Reminder: Contracts Closed 13 Days Ago</div>
+        <a href="https://your-yelo-project-link.com" style={styles.backBtn}>← Back to YELO</a>
       </div>
 
-      {results.length > 0 && (
-        <div style={{ overflowX: "auto", maxHeight: "75vh" }}>
-          <table ref={tableRef} style={{ borderCollapse: "collapse", minWidth: "1600px", background: "#fff" }}>
-            <thead>
-              <tr>
-                <th style={{ border: "1px solid #ccc", padding: "8px", minWidth: 50, textAlign: "center", position: "sticky", top: 0, backgroundColor: "#fff", zIndex: 1 }}>#</th>
-                {headers.map((header, index) => (
-                  <th key={index} style={{ border: "1px solid #ccc", padding: "8px", minWidth: 150, textAlign: "center", position: "sticky", top: 0, backgroundColor: "#fff", zIndex: 1 }}>{header}</th>
+      <div style={styles.content}>
+        <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} style={styles.input} />
+
+        {dueContracts.length > 0 ? (
+          <>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>No.</th>
+                  <th style={styles.th}>Contract No.</th>
+                  <th style={styles.th}>Customer</th>
+                  <th style={styles.th}>Drop-off Date</th>
+                  <th style={styles.th}>Days</th>
+                  <th style={styles.th}>Closed By</th>
+                  <th style={styles.th}>Branch</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dueContracts.map((row, idx) => (
+                  <tr key={idx}>
+                    <td style={styles.td}>{idx + 1}</td>
+                    <td style={styles.td}>{row.contract}</td>
+                    <td style={styles.td}>{row.customer}</td>
+                    <td style={styles.td}>{row.dropDate}</td>
+                    <td style={styles.td}>{row.days}</td>
+                    <td style={styles.td}>{row.closedBy}</td>
+                    <td style={styles.td}>{row.branch}</td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-  {results.map((row, idx) => {
-    const booking = row["Booking Number"] || "";
-    const isNumericBooking = !isNaN(Number(booking));
-    const ejar = normalize(row["EJAR"]);
-    const invygo = normalize(row["INVYGO"]);
-    const isMismatch = isNumericBooking && ejar && invygo && ejar !== invygo;
+              </tbody>
+            </table>
 
-    const maintenance = maintenanceData.find((m) => m["Vehicle"] === row["INVYGO"]);
-    const isRepairDone = maintenance && maintenance["Date IN"];
-    const isReadyToSwitchBack = isMismatch && isRepairDone;
-
-    let rowStyle = {};
-    if (isReadyToSwitchBack) {
-      rowStyle.backgroundColor = "#EDE275";
-    } else if (isMismatch) {
-      rowStyle.backgroundColor = "#E799A3";
-    }
-
-    return (
-      <tr key={idx} style={rowStyle}>
-        <td style={{ border: "1px solid #ddd", padding: "6px", textAlign: "center" }}>{idx + 1}</td>
-        {headers.map((header, index) => (
-          <td key={index} style={{ border: "1px solid #ddd", padding: "6px", textAlign: "center" }}>
-            {row[header] || ""}
-          </td>
-        ))}
-      </tr>
-    );
-  })}
-</tbody>
-          </table>
-        </div>
-      )}
-
-      {showAnalytics && (
-        <Modal title="Analytics" onClose={() => setShowAnalytics(false)}>
-          <p>✅ Total Rows: {analytics.total}</p>
-          <p>✅ INVYGO: {analytics.invygoCount}</p>
-          <p>✅ Daily: {analytics.dailyCount}</p>
-          <p>✅ Monthly + Sponsorship: {analytics.monthlyCount}</p>
-          <p>✅ Leasing: {analytics.leasingCount}</p>
-          <p>✅ Mismatched: {switchBackMismatches}</p>
-          <p>✅ Ready to Switch Back: {
-            results.filter((row) => {
-              const booking = row["Booking Number"] || "";
-              const isNumericBooking = !isNaN(Number(booking));
-              const ejar = normalize(row["EJAR"]);
-              const invygo = normalize(row["INVYGO"]);
-              const maintenance = maintenanceData.find((m) => m["Vehicle"] === row["INVYGO"]);
-              const isRepairDone = maintenance && maintenance["Date IN"];
-              return isRepairDone && isNumericBooking && ejar !== invygo;
-            }).length
-          }</p>
-        </Modal>
-      )}
-
-      {showDailyReport && (
-        <Modal title="📅 Daily Report" onClose={() => setShowDailyReport(false)}>
-          <DailyBookingReport />
-        </Modal>
-      )}
+            <button style={styles.emailBtn} onClick={handleSendEmail}>📧 Send Email</button>
+          </>
+        ) : (
+          <p>No contracts reached day 13 yet.</p>
+        )}
+      </div>
     </div>
   );
 }
+
+export default ReminderDue14Days;

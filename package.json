@@ -1,8 +1,8 @@
 {
-  "name": "car-search-tool",
+  "name": "indebet",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://moalamir52.github.io/car-search-tool",
+  "homepage": "https://moalamir52.github.io/indebet",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
