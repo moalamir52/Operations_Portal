@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import * as XLSX from "xlsx";
+import ContractVlookup from "./ContractVlookup.tsx";
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
@@ -58,7 +59,7 @@ function ReminderDue14Days() {
   };
 
   const handleSendEmail = () => {
-    const header = `Dear Team,%0D%0A%0D%0AThe following contracts were closed 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(🔔 NOTE : If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
+    const header = `Dear Team,%0D%0A%0D%0AThe following contracts were closed 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
     const tableHeader = `No.  Contract No.           Drop-off Date   Days  Branch%0D%0A`;
     const tableBody = dueContracts.map((row, i) => {
       const num = (i + 1).toString().padEnd(4, " ");
@@ -155,9 +156,7 @@ function ReminderDue14Days() {
     <div style={styles.container}>
       <div style={styles.topBar}>
         <div style={styles.title}>📢 Reminder: Contracts Closed 13 Days Ago</div>
-        <a href="https://your-yelo-project-link.com" style={styles.backBtn}>← Back to YELO</a>
       </div>
-
       <div style={styles.content}>
         <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} style={styles.input} />
 
@@ -189,7 +188,6 @@ function ReminderDue14Days() {
                 ))}
               </tbody>
             </table>
-
             <button style={styles.emailBtn} onClick={handleSendEmail}>📧 Send Email</button>
           </>
         ) : (
@@ -200,4 +198,132 @@ function ReminderDue14Days() {
   );
 }
 
-export default ReminderDue14Days;
+function App() {
+  const [view, setView] = useState("home");
+
+  const containerStyle = {
+    fontFamily: "Arial, sans-serif",
+    backgroundColor: "#fffde7",
+    minHeight: "100vh",
+    padding: "40px 20px",
+    textAlign: "center",
+  };
+
+  const cardStyle = {
+    margin: "0 auto",
+    padding: "20px",
+    width: "80%",
+    backgroundColor: "#ffd54f",
+    borderRadius: "15px",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+    fontFamily: "Arial, sans-serif",
+    color: "#4a148c",
+    fontWeight: "bold",
+    fontSize: "24px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  };
+
+  const backBtnStyle = {
+    backgroundColor: "#6a1b9a",
+    color: "#fff",
+    padding: "10px 20px",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    textDecoration: "none",
+    fontSize: "16px",
+    cursor: "pointer",
+    position: "absolute",
+    left: "20px",
+  };
+
+  const buttonStyle = {
+    padding: "15px 30px",
+    margin: "15px",
+    fontSize: "16px",
+    fontWeight: "bold",
+    borderRadius: "10px",
+    border: "none",
+    cursor: "pointer",
+    backgroundColor: "#ffd54f",
+    color: "#4a148c",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.2)",
+    transition: "transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease",
+  };
+
+  const buttonHoverStyle = {
+    backgroundColor: "#4a148c",
+    color: "#ffd54f",
+    transform: "scale(1.1)",
+    boxShadow: "0 6px 12px rgba(0, 0, 0, 0.3)",
+  };
+
+  return (
+    <div style={containerStyle}>
+      {view === "home" && (
+        <>
+          <div style={cardStyle}>
+            <a href="https://moalamir52.github.io/Yelo/#dashboard" style={backBtnStyle}>← Back to Dashboard</a>
+            🎯 Welcome Team! Please Choose a Project
+          </div>
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("reminder")}
+          >
+            📢 Reminder
+          </button>
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("vlookup")}
+          >
+            🔍 Contracts
+          </button>
+        </>
+      )}
+
+      {view === "reminder" && (
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <ReminderDue14Days />
+        </>
+      )}
+
+      {view === "vlookup" && (
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <ContractVlookup />
+        </>
+      )}
+    </div>
+  );
+}
+
+export default App;
