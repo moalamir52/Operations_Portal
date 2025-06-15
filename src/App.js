@@ -5,6 +5,8 @@ import Fleet from "./Fleet.tsx";
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
+  const [emailTarget, setEmailTarget] = useState("dubai"); // ✅ مهم جداً
+
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -18,39 +20,41 @@ function ReminderDue14Days() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       const processed = jsonData.map((row) => {
-        const dropRaw = row["Drop-off Date"];
-        let dropDate;
+  const pickupRaw = row["Pick-up Date"];
+  let pickupDate;
 
-        if (typeof dropRaw === "number") {
-          const parsed = XLSX.SSF.parse_date_code(dropRaw);
-          dropDate = new Date(parsed.y, parsed.m - 1, parsed.d);
-        } else if (typeof dropRaw === "string") {
-          const parts = dropRaw.split(/[\s/:.-]+/);
-          if (parts.length >= 3) {
-            const [day, month, year] = parts.map((p) => parseInt(p));
-            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-              dropDate = new Date(year, month - 1, day);
-            }
-          }
-        }
+  if (typeof pickupRaw === "number") {
+    const parsed = XLSX.SSF.parse_date_code(pickupRaw);
+    pickupDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+  } else if (typeof pickupRaw === "string") {
+    const parts = pickupRaw.split(/[\s/:.-]+/);
+    if (parts.length >= 3) {
+      const [day, month, year] = parts.map((p) => parseInt(p));
+      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+        pickupDate = new Date(year, month - 1, day);
+      }
+    }
+  }
 
-        if (!dropDate || isNaN(dropDate)) return null;
+  if (!pickupDate || isNaN(pickupDate)) return null;
 
-        const today = new Date();
-        const drop = new Date(dropDate.getFullYear(), dropDate.getMonth(), dropDate.getDate());
-        const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const today = new Date();
+  const pickup = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-        const diff = Math.floor((now - drop) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((now - pickup) / (1000 * 60 * 60 * 24));
 
-        return {
-          contract: row["Contract No."],
-          customer: row["Customer"],
-          dropDate: drop.toLocaleDateString("en-GB"),
-          days: diff,
-          closedBy: row["Closed By"],
-          branch: row["Pick-up Branch"] || "",
-        };
-      }).filter(Boolean);
+  return {
+    contract: row["Contract No."],
+    customer: row["Customer"],
+    pickupDate: pickup.toLocaleDateString("en-GB"),
+dropDate: pickup.toLocaleDateString("en-GB"), // العرض ما زال بنفس الاسم
+    days: diff,
+    closedBy: row["Closed By"],
+    branch: row["Pick-up Branch"] || "",
+  };
+}).filter(Boolean);
+
 
       const due = processed.filter((r) => r.days === 13);
       setDueContracts(due);
@@ -60,25 +64,34 @@ function ReminderDue14Days() {
   };
 
   const handleSendEmail = () => {
-    const header = `Dear Team,%0D%0A%0D%0AThe following contracts were closed 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
-    const tableHeader = `No.  Contract No.           Drop-off Date   Days  Branch%0D%0A`;
-    const tableBody = dueContracts.map((row, i) => {
-      const num = (i + 1).toString().padEnd(4, " ");
-      const contract = (row.contract || "").padEnd(22, " ");
-      const drop = (row.dropDate || "").padEnd(16, " ");
-      const days = row.days.toString().padEnd(6, " ");
-      const branch = (row.branch || "").padEnd(15, " ");
-      return `${num}${contract}${drop}${days}${branch}`;
-    }).join("%0D%0A");
+  const header = `Dear Team,%0D%0A%0D%0AThe following contracts were Opened 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
+  const tableHeader = `No.  Contract No.           Pick-up Date   Days  Branch%0D%0A`;
 
-    const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
+  const tableBody = dueContracts.map((row, i) => {
+    const num = (i + 1).toString().padEnd(4, " ");
+    const contract = (row.contract || "").padEnd(22, " ");
+    const pickup = (row.pickupDate || "").padEnd(16, " ");
+    const days = row.days.toString().padEnd(6, " ");
+    const branch = (row.branch || "").padEnd(15, " ");
+    return `${num}${contract}${pickup}${days}${branch}`;
+  }).join("%0D%0A");
 
-    const to = "dubaiair@iyelo.com,dubaiair2@iyelo.com";
-    const cc = "a.naseer@iyelo.com";
+  const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
 
-    const mailtoLink = `mailto:${to}?cc=${cc}&subject=Reminder: Contracts Closed 13 Days Ago&body=${header}${tableHeader}${tableBody}${footer}`;
-    window.location.href = mailtoLink;
-  };
+  // تحديد الجهة المستلمة بناءً على الاختيار
+  let to = "";
+  const cc = "a.naseer@iyelo.com";
+
+  if (emailTarget === "dubai") {
+    to = "dubaiair@iyelo.com,dubaiair2@iyelo.com";
+  } else if (emailTarget === "oman") {
+    to = "m.muscatair@iyelo.com,muscatair@iyelo.com";
+  }
+
+  const mailtoLink = `mailto:${to}?cc=${cc}&subject=Reminder: Contracts Closed 13 Days Ago&body=${header}${tableHeader}${tableBody}${footer}`;
+  window.location.href = mailtoLink;
+};
+
 
   const styles = {
     container: {
@@ -156,20 +169,78 @@ function ReminderDue14Days() {
   return (
     <div style={styles.container}>
       <div style={styles.topBar}>
-        <div style={styles.title}>📢 Reminder: Contracts Closed 13 Days Ago</div>
+        <div style={styles.title}>📢 Reminder: Contracts Opened 13 Days Ago</div>
       </div>
       <div style={styles.content}>
         <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} style={styles.input} />
 
         {dueContracts.length > 0 ? (
           <>
+          <div style={{ marginBottom: "20px" }}>
+  <strong>Select Email Target:</strong><br />
+  <div style={{ marginBottom: "30px", textAlign: "center" }}>
+  <button
+    onClick={() => setEmailTarget("dubai")}
+    style={{
+      margin: "10px",
+      padding: "10px 20px",
+      backgroundColor: emailTarget === "dubai" ? "#6a1b9a" : "#ffd54f",
+      color: emailTarget === "dubai" ? "#ffd54f" : "#6a1b9a",
+      border: "none",
+      borderRadius: "8px",
+      fontWeight: "bold",
+      fontSize: "16px",
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      transition: "all 0.3s ease"
+    }}
+  >
+    <img
+      src="https://flagcdn.com/w40/ae.png"
+      alt="UAE"
+      width="24"
+      style={{ marginRight: "8px", borderRadius: "4px" }}
+    />
+    Dubai
+  </button>
+
+  <button
+    onClick={() => setEmailTarget("oman")}
+    style={{
+      margin: "10px",
+      padding: "10px 20px",
+      backgroundColor: emailTarget === "oman" ? "#6a1b9a" : "#ffd54f",
+      color: emailTarget === "oman" ? "#ffd54f" : "#6a1b9a",
+      border: "none",
+      borderRadius: "8px",
+      fontWeight: "bold",
+      fontSize: "16px",
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      transition: "all 0.3s ease"
+    }}
+  >
+    <img
+      src="https://flagcdn.com/w40/om.png"
+      alt="Oman"
+      width="24"
+      style={{ marginRight: "8px", borderRadius: "4px" }}
+    />
+    Oman
+  </button>
+</div>
+
+</div>
+
             <table style={styles.table}>
               <thead>
                 <tr>
                   <th style={styles.th}>No.</th>
                   <th style={styles.th}>Contract No.</th>
                   <th style={styles.th}>Customer</th>
-                  <th style={styles.th}>Drop-off Date</th>
+                  <th style={styles.th}>Pick-up Date</th>
                   <th style={styles.th}>Days</th>
                   <th style={styles.th}>Closed By</th>
                   <th style={styles.th}>Branch</th>
