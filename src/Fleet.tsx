@@ -134,12 +134,11 @@ export default function ContractVlookup() {
   return (
     <div style={{ padding: 20, fontFamily: "'Segoe UI', sans-serif", background: yeloColors.tertiary }}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <button style={{ background: yeloColors.primary, color: yeloColors.darkPurple, fontWeight: "bold", padding: "8px 20px", borderRadius: 8, border: "none", boxShadow: `0 4px 0 ${yeloColors.secondary}`, cursor: "pointer" }}>← Back</button>
       </div>
 
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ display: "inline-block", background: yeloColors.primary, color: yeloColors.secondary, padding: "15px 40px", fontWeight: "bold", fontSize: 24, borderRadius: 10, boxShadow: `0 4px 0 ${yeloColors.darkPurple}` }}>
-          YELO Contract Lookup Tool
+          YELO Fleet Lookup Tool With RTA
         </div>
       </div>
 
