@@ -103,15 +103,15 @@ dropDate: pickup.toLocaleDateString("en-GB"), // العرض ما زال بنفس
     topBar: {
       backgroundColor: "#FFD700",
       border: "2px solid #6a1b9a",
-      color: "#333",
+      color: "#6a1b9a",
       borderRadius: "16px",
       padding: "15px 25px",
       margin: "0 auto 30px",
       maxWidth: "950px",
       display: "flex",
-      justifyContent: "space-between",
+      justifyContent: "center",
       alignItems: "center",
-      boxShadow: "0 4px 12px rgba(106, 27, 154, 0.2)",
+      boxShadow: "0 6px 12px rgba(105, 27, 154, 0.65)",
     },
     backBtn: {
       backgroundColor: "#6a1b9a",
