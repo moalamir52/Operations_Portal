@@ -64,7 +64,7 @@ dropDate: pickup.toLocaleDateString("en-GB"), // العرض ما زال بنفس
   };
 
   const handleSendEmail = () => {
-  const header = `Dear Team,%0D%0A%0D%0AThe following contracts were Opened 13 days ago. Please review and ensure dues are settled.%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
+  const header = `Dear Team,%0D%0A%0D%0AThe following contracts were opened 13 days ago. Kindly review them, ensure all dues are settled, and update the status accordingly..%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
   const tableHeader = `No.  Contract No.           Pick-up Date   Days  Branch%0D%0A`;
 
   const tableBody = dueContracts.map((row, i) => {
@@ -88,7 +88,7 @@ dropDate: pickup.toLocaleDateString("en-GB"), // العرض ما زال بنفس
     to = "m.muscatair@iyelo.com,muscatair@iyelo.com";
   }
 
-  const mailtoLink = `mailto:${to}?cc=${cc}&subject=Reminder: Contracts Closed 13 Days Ago&body=${header}${tableHeader}${tableBody}${footer}`;
+  const mailtoLink = `mailto:${to}?cc=${cc}&subject=Reminder: Contracts Pickup 13 Days Ago&body=${header}${tableHeader}${tableBody}${footer}`;
   window.location.href = mailtoLink;
 };
 
@@ -420,6 +420,16 @@ function App() {
     <Fleet />
   </>
 )}
+<div style={{
+  textAlign: "center",
+  marginTop: 40,
+  padding: 16,
+  fontSize: 14,
+  color: "#888",
+  borderTop: "1px solid #eee"
+}}>
+  © {new Date().getFullYear()} Mohamed Alamir. All rights reserved.
+</div>
 
     </div>
   );

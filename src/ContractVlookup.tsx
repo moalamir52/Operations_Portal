@@ -577,21 +577,6 @@ export default function ContractVlookup() {
         </div>
       )}
       
-      <div style={{ 
-        marginTop: 25, 
-        textAlign: "center", 
-        padding: "15px",
-        borderRadius: "4px",
-        background: `linear-gradient(to right, ${yeloColors.secondary}, ${yeloColors.darkPurple})`,
-        color: yeloColors.white,
-        fontSize: "0.9em",
-        display: "flex",
-        flexDirection: "column",
-        gap: "5px"
-      }}>
-        <div style={{ fontWeight: "bold" }}>© 2025 Mohamed Alamir</div>
-        <div>YELO Car Rental | Contract Management Tool</div>
-      </div>
     </div>
   );
 }
