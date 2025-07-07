@@ -500,7 +500,7 @@ function App() {
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
             onClick={() => setView("kilometer")}
           >
-            🧮 Kilometer Calculator
+            🧮 Mileage Calculator
           </button>
 
         </>
