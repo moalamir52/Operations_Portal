@@ -131,16 +131,16 @@ export default function ContractVlookup() {
     // Create lookup map for better performance
     const uploadedMap = new Map();
     uploadedData.forEach(row => {
-      const key = row["Contract No."]?.toString().trim();
+      const key = row["Contract No."]?.toString().trim().toLowerCase();
       if (key) uploadedMap.set(key, row);
     });
 
     const result = refData.map((refRow) => {
-      const contractNo = refRow["Contract No."]?.toString().trim();
+      const contractNoRaw = refRow["Contract No."];
+      const contractNo = contractNoRaw?.toString().trim().toLowerCase();
       const match = uploadedMap.get(contractNo);
-      
       return {
-        contract: contractNo,
+        contract: contractNoRaw?.toString().trim() || "❌", // نعرض الرقم الأصلي بدون تغيير حالة الأحرف
         plate: match?.["Plate No."] || "❌",
         model: match?.["Model"] || "❌",
         pickup: match?.["Pick-up Date"] || "❌",
