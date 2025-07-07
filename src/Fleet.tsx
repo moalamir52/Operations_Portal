@@ -115,7 +115,7 @@ export default function ContractVlookup() {
   };
 
   const copySelectedColumns = () => {
-    const content = results.map((row, i) => [i + 1, ...selectedColumns.map(col => row[col])].join("\t")).join("\n");
+    const content = results.map(row => selectedColumns.map(col => row[col]).join("\t")).join("\n");
     navigator.clipboard.writeText(content).then(() => {
       setCopyMessage("Copied selected columns!");
       setTimeout(() => setCopyMessage(""), 2000);

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import ContractVlookup from "./ContractVlookup.tsx";
 import Fleet from "./Fleet.tsx";
+import KilometerTracker from './KM.tsx';
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
@@ -486,13 +487,21 @@ function App() {
             🔍 Contracts
           </button>
           <button
-  style={buttonStyle}
-  onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
-  onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-  onClick={() => setView("fleet")}
->
-  🚗 Fleet
-</button>
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("fleet")}
+          >
+            🚗 Fleet
+          </button>
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("kilometer")}
+          >
+            🧮 Kilometer Calculator
+          </button>
 
         </>
       )}
@@ -549,6 +558,23 @@ function App() {
     <Fleet />
   </>
 )}
+      {view === "kilometer" && (
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <KilometerTracker />
+        </>
+      )}
 <div style={{
   textAlign: "center",
   marginTop: 40,

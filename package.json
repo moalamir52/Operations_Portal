@@ -2,8 +2,12 @@
   "name": "indebet",
   "version": "1.0.0",
   "private": true,
-"homepage": "https://moalamir52.github.io/indebt",
+  "homepage": "https://moalamir52.github.io/indebt",
   "dependencies": {
+    "exceljs": "^4.4.0",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "papaparse": "^5.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
