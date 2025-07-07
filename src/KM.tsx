@@ -382,11 +382,29 @@ function KilometerTracker() {
 
   const inputStyle = {
     margin: isMobile ? '4px 0' : '5px',
-    padding: isMobile ? '8px' : '10px',
-    width: isMobile ? '100%' : 'calc(100% - 22px)',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-    fontSize: isMobile ? '15px' : undefined
+    padding: isMobile ? '12px' : '14px',
+    width: isMobile ? '100%' : 'calc(100% - 28px)',
+    borderRadius: '18px',
+    border: '2px solid #ffe066', // أصفر يلو
+    fontSize: isMobile ? '15px' : '17px',
+    background: '#fffbe7', // أصفر فاتح جداً
+    boxShadow: '0 2px 12px rgba(106,27,154,0.07)', // بنفسجي خفيف
+    outline: 'none',
+    transition: 'box-shadow 0.2s, border-color 0.2s, background 0.2s',
+    color: '#6a1b9a', // بنفسجي يلو
+    fontWeight: 500,
+  };
+
+  // تأثير عند التركيز (focus) عبر style inline
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.style.boxShadow = '0 4px 16px rgba(106,27,154,0.18)';
+    e.target.style.borderColor = '#6a1b9a'; // بنفسجي يلو
+    e.target.style.background = '#fff';
+  };
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.style.boxShadow = '0 2px 12px rgba(106,27,154,0.07)';
+    e.target.style.borderColor = '#ffe066'; // أصفر يلو
+    e.target.style.background = '#fffbe7';
   };
 
   const buttonStyle = {
@@ -426,6 +444,8 @@ function KilometerTracker() {
         value={booking}
         onChange={e => setBooking(e.target.value)}
         style={inputStyle}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
       />
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
@@ -436,10 +456,39 @@ function KilometerTracker() {
 
       {/* بيانات العقد تظهر فقط إذا لم توجد سجلات */}
       {contractData && logs.length === 0 && (
-        <div style={{ marginBottom: '15px', background: '#eef0ff', padding: '10px', borderRadius: '6px' }}>
-          <p><strong>📘 Booking:</strong> {contractData['Booking Number']}</p>
-          <p><strong>📄 Contract:</strong> {contractData['Contract No.']}</p>
-          <p><strong>👤 Customer:</strong> {contractData['Customer']}</p>
+        <div
+          style={{
+            marginBottom: '18px',
+            background: '#fffbe7', // أصفر فاتح جداً
+            borderRadius: '18px',
+            boxShadow: '0 2px 12px rgba(106,27,154,0.10)',
+            border: '1.5px solid #ffe066',
+            padding: '16px 18px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: isMobile ? '100%' : 'fit-content',
+            maxWidth: isMobile ? '98vw' : '600px',
+            minWidth: isMobile ? '90%' : undefined,
+            alignSelf: 'center',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            overflowX: 'auto',
+          }}
+        >
+          {/* whiteSpace: nowrap لكل سطر */}
+          <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 20, marginRight: 6, color: '#29b6f6' }}>■</span>
+            Booking: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Booking Number']}</span>
+          </p>
+          <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 20, marginRight: 6, color: '#b39ddb' }}>📄</span>
+            Contract: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Contract No.']}</span>
+          </p>
+          <p style={{ margin: 0, fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 20, marginRight: 6, color: '#6a1b9a' }}>👤</span>
+            Customer: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Customer']}</span>
+          </p>
         </div>
       )}
 
@@ -469,6 +518,8 @@ function KilometerTracker() {
             onChange={e => setDate(e.target.value)}
             style={inputStyle}
             onKeyDown={e => { if (e.key === 'Enter') handleAddLog(); }}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
           />
           {contractData && (
             <p style={{ color: '#888', fontSize: '13px' }}>
@@ -486,6 +537,8 @@ function KilometerTracker() {
         style={inputStyle}
         onKeyDown={e => { if (e.key === 'Enter') handleAddLog(); }}
         ref={outInputRef}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
       />
       <input
         type="number"
@@ -494,6 +547,8 @@ function KilometerTracker() {
         onChange={e => setInVal(e.target.value)}
         style={inputStyle}
         onKeyDown={e => { if (e.key === 'Enter') handleAddLog(); }}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
       />
       {/* ضع id="export-section" على القسم الذي تريد تصديره كصورة */}
       {/* الأزرار خارج export-section */}
@@ -567,10 +622,39 @@ function KilometerTracker() {
         {logs.length > 0 && (
           <>
             {contractData && (
-              <div style={{ marginBottom: '15px', background: '#eef0ff', padding: '10px', borderRadius: '6px' }}>
-                <p><strong>📘 Booking:</strong> {contractData['Booking Number']}</p>
-                <p><strong>📄 Contract:</strong> {contractData['Contract No.']}</p>
-                <p><strong>👤 Customer:</strong> {contractData['Customer']}</p>
+              <div
+                style={{
+                  marginBottom: '18px',
+                  background: '#fffbe7',
+                  borderRadius: '18px',
+                  boxShadow: '0 2px 12px rgba(106,27,154,0.10)',
+                  border: '1.5px solid #ffe066',
+                  padding: '16px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: isMobile ? '100%' : 'fit-content',
+                  maxWidth: isMobile ? '98vw' : '600px',
+                  minWidth: isMobile ? '90%' : undefined,
+                  alignSelf: 'center',
+                  marginLeft: 'auto',
+                  marginRight: 'auto',
+                  overflowX: 'auto',
+                }}
+              >
+                {/* whiteSpace: nowrap لكل سطر */}
+                <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 20, marginRight: 6, color: '#29b6f6' }}>■</span>
+                  Booking: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Booking Number']}</span>
+                </p>
+                <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 20, marginRight: 6, color: '#b39ddb' }}>📄</span>
+                  Contract: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Contract No.']}</span>
+                </p>
+                <p style={{ margin: 0, fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 20, marginRight: 6, color: '#6a1b9a' }}>👤</span>
+                  Customer: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Customer']}</span>
+                </p>
               </div>
             )}
             {/* احذف عرض تاريخ البداية هنا */}
