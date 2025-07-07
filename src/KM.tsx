@@ -425,14 +425,24 @@ function KilometerTracker() {
           background: '#ffe066',
           color: '#6a1b9a',
           fontWeight: 'bold',
-          fontSize: '32px',
+          fontSize: '34px',
           textAlign: 'center',
-          borderRadius: '12px',
-          padding: '18px 0',
+          borderRadius: '28px',
+          padding: '22px 0',
           margin: '32px 0 28px 0',
-          boxShadow: '0 4px 12px rgba(124,58,237,0.10), 0 2px 0 #fff59d',
-          letterSpacing: '1px',
-          textShadow: '0 1px 0 #fffde7'
+          boxShadow: '0 8px 32px 0 rgba(106,27,154,0.22), 0 2px 0 #ffe066',
+          letterSpacing: '1.5px',
+          textShadow: '0 2px 8px #fffde7, 0 1px 0 #fff',
+          transition: 'transform 0.18s, box-shadow 0.18s',
+          cursor: 'pointer',
+        }}
+        onMouseOver={e => {
+          e.currentTarget.style.transform = 'scale(1.025)';
+          e.currentTarget.style.boxShadow = '0 16px 48px 0 rgba(106,27,154,0.28), 0 2px 0 #ffe066';
+        }}
+        onMouseOut={e => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 8px 32px 0 rgba(106,27,154,0.22), 0 2px 0 #ffe066';
         }}
       >
         📊 YELO - Mileage calculation
