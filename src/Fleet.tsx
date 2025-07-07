@@ -118,6 +118,7 @@ export default function ContractVlookup() {
     const content = results.map(row => selectedColumns.map(col => row[col]).join("\t")).join("\n");
     navigator.clipboard.writeText(content).then(() => {
       setCopyMessage("Copied selected columns!");
+      setSelectedColumns([]); // إلغاء التحديد بعد النسخ
       setTimeout(() => setCopyMessage(""), 2000);
     });
   };
