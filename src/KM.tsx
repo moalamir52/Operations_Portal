@@ -189,41 +189,119 @@ function KilometerTracker() {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Records');
 
-    // بيانات العقد
-    sheet.addRow(['Booking', contractData?.['Booking Number'] || '']);
-    sheet.addRow(['Contract', contractData?.['Contract No.'] || '']);
-    sheet.addRow(['Customer', contractData?.['Customer'] || '']);
-    sheet.addRow(['Contract Start Date', lastDate ? formatDateToDMY(lastDate) : '']);
-    sheet.addRow([]);
+    let rowIdx = 1;
+    // 1. Contract Start Date block (if exists)
+    if (dateLocked && lastDate) {
+      const row = sheet.addRow([`Contract Start Date: ${formatDateToDMY(lastDate)}`]);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, color: { argb: 'FFB28704' }, size: 16 };
+      row.alignment = { horizontal: 'center', vertical: 'middle' };
+      row.height = 28;
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFDE7' } };
+      rowIdx++;
+      sheet.addRow([]); rowIdx++;
+    }
 
-    // بيانات الملخص
-    sheet.addRow(['Days since contract start', getDaysSinceFirst() + ' days']);
-    sheet.addRow(['Allowed KM', allowedKm + ' km']);
-    sheet.addRow(['Used KM', totalUsedKm + ' km']);
-    sheet.addRow(['Exceeded KM', exceeded + ' km']);
-    sheet.addRow([]);
+    // 2. بيانات العميل (لو موجودة)
+    if (contractData) {
+      const block = [
+        [`📘 Booking:`, contractData['Booking Number'] || ''],
+        [`📄 Contract:`, contractData['Contract No.'] || ''],
+        [`👤 Customer:`, contractData['Customer'] || '']
+      ];
+      block.forEach(([label, value]) => {
+        const row = sheet.addRow([label, value]);
+        row.font = { bold: true, color: { argb: 'FF6a1b9a' }, size: 13 };
+        row.alignment = { vertical: 'middle' };
+        row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF0FF' } };
+        row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF0FF' } };
+        row.height = 20;
+        rowIdx++;
+      });
+      sheet.addRow([]); rowIdx++;
+    }
 
-    // رؤوس الأعمدة
-    const headerRow = sheet.addRow(['#', 'OUT', 'IN', 'Distance']);
-    headerRow.eachCell(cell => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6a1b9a' } };
-      cell.alignment = { horizontal: 'center' };
-    });
+    // 3. عنوان السجلات
+    {
+      const row = sheet.addRow(['📂 Records']);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, size: 15, color: { argb: 'FF6a1b9a' } };
+      row.alignment = { horizontal: 'left', vertical: 'middle' };
+      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
+      row.height = 22;
+      rowIdx++;
+    }
 
-    // بيانات السجلات
-    logs.forEach((log, i) => {
-      const row = sheet.addRow([i + 1, log.out, log.inVal, log.inVal - log.out]);
-      if (i % 2 === 0) {
+    // 4. جدول السجلات
+    if (logs.length > 0) {
+      const headerRow = sheet.addRow(['#', 'OUT', 'IN', 'Distance']);
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6a1b9a' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+      headerRow.height = 20;
+      rowIdx++;
+      logs.forEach((log, i) => {
+        const row = sheet.addRow([i + 1, log.out, log.inVal, log.inVal - log.out]);
         row.eachCell(cell => {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
         });
-      }
-    });
+        if (i % 2 === 0) {
+          row.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
+          });
+        }
+        row.height = 18;
+        rowIdx++;
+      });
+      sheet.addRow([]); rowIdx++;
+    }
+
+    // 5. Days since contract start
+    {
+      const row = sheet.addRow([`📅 Days since contract start: ${getDaysSinceFirst()} days`]);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, color: { argb: 'FF4b2991' }, size: 13 };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0E6FF' } };
+      row.alignment = { horizontal: 'left', vertical: 'middle' };
+      row.height = 20;
+      rowIdx++;
+    }
+    // 6. Allowed KM
+    {
+      const row = sheet.addRow([`✅ Allowed KM: ${allowedKm} km`]);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, color: { argb: 'FF256029' }, size: 13 };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
+      row.alignment = { horizontal: 'left', vertical: 'middle' };
+      row.height = 20;
+      rowIdx++;
+    }
+    // 7. Used KM
+    {
+      const row = sheet.addRow([`📌 Used KM: ${totalUsedKm} km`]);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, color: { argb: 'FF0d47a1' }, size: 13 };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+      row.alignment = { horizontal: 'left', vertical: 'middle' };
+      row.height = 20;
+      rowIdx++;
+    }
+    // 8. Exceeded KM
+    {
+      const row = sheet.addRow([`⚠️ Exceeded KM: ${exceeded} km`]);
+      sheet.mergeCells(`A${rowIdx}:D${rowIdx}`);
+      row.font = { bold: true, color: { argb: 'FFb71c1c' }, size: 13 };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEBEE' } };
+      row.alignment = { horizontal: 'left', vertical: 'middle' };
+      row.height = 20;
+      rowIdx++;
+    }
 
     // ضبط عرض الأعمدة
     sheet.columns.forEach(col => {
-      col.width = 15;
+      col.width = 18;
     });
 
     // اسم الملف
@@ -241,7 +319,7 @@ function KilometerTracker() {
     // حفظ الملف
     const buffer = await workbook.xlsx.writeBuffer();
     saveAs(new Blob([buffer]), fileName);
-    showToast('File exported successfully!');
+    // showToast('File exported successfully!'); // تم إلغاء الرسالة
   }
 
   // دالة تصدير البيانات كصورة
@@ -263,7 +341,7 @@ function KilometerTracker() {
       link.download = fileName;
       link.href = canvas.toDataURL();
       link.click();
-      showToast('Image exported successfully!');
+      // showToast('Image exported successfully!'); // تم إلغاء الرسالة
     });
   }
 
@@ -459,7 +537,7 @@ function KilometerTracker() {
           style={{
             ...buttonStyle,
             background: '#ffb300',
-            color: '#6a1b9a',
+            color: '#fff',
           }}
           onClick={exportAsImage}
         >
