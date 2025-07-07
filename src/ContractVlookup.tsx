@@ -181,6 +181,7 @@ export default function ContractVlookup() {
     
     navigator.clipboard.writeText(columnData).then(() => {
       setCopyMessage("Copied Selected Columns!");
+      setSelectedColumns([]); // إلغاء تحديد الأعمدة بعد النسخ
       setTimeout(() => setCopyMessage(""), 2000); // Hide message after 2 seconds
     });
   };
