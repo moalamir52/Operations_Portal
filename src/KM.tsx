@@ -49,6 +49,7 @@ function KilometerTracker() {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 2000);
   };
+  const [manualEndDate, setManualEndDate] = useState<string>('');
 
   const outInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -94,21 +95,6 @@ function KilometerTracker() {
     }
   }, [contractData]);
 
-  useEffect(() => {
-    // حفظ البيانات في LocalStorage عند كل تغيير
-    const dataToSave = {
-      logs,
-      out,
-      inVal,
-      date,
-      lastDate,
-      dateLocked,
-      booking,
-      contractData
-    };
-    localStorage.setItem('km-tracker-data', JSON.stringify(dataToSave));
-  }, [logs, out, inVal, date, lastDate, dateLocked, booking, contractData]);
-
   // استرجاع البيانات من LocalStorage عند تحميل الصفحة
   useEffect(() => {
     const saved = localStorage.getItem('km-tracker-data');
@@ -123,9 +109,26 @@ function KilometerTracker() {
         if (typeof data.dateLocked === 'boolean') setDateLocked(data.dateLocked);
         if (data.booking) setBooking(data.booking);
         if (data.contractData) setContractData(data.contractData);
+        if (data.manualEndDate) setManualEndDate(data.manualEndDate);
       } catch {}
     }
   }, []);
+
+  // حفظ البيانات في LocalStorage عند كل تغيير
+  useEffect(() => {
+    const dataToSave = {
+      logs,
+      out,
+      inVal,
+      date,
+      lastDate,
+      dateLocked,
+      booking,
+      contractData,
+      manualEndDate
+    };
+    localStorage.setItem('km-tracker-data', JSON.stringify(dataToSave));
+  }, [logs, out, inVal, date, lastDate, dateLocked, booking, contractData, manualEndDate]);
 
   // عند تغيير رقم البوكينج، امسح السجلات والحقول
   useEffect(() => {
@@ -135,6 +138,7 @@ function KilometerTracker() {
     setDate('');
     setLastDate('');
     setDateLocked(false);
+    setManualEndDate('');
     localStorage.removeItem('km-tracker-data');
   }, [booking]);
 
@@ -173,12 +177,24 @@ function KilometerTracker() {
     return sorted[0].date;
   };
 
+  // دالة لجلب تاريخ نهاية العقد
+  const getContractEndDate = () => {
+    if (manualEndDate) {
+      return new Date(manualEndDate);
+    }
+    if (contractData && contractData['Close Date']) {
+      const closeDate = parseCustomDate(contractData['Close Date']);
+      if (closeDate) return new Date(closeDate);
+    }
+    return new Date();
+  };
+
   const getDaysSinceFirst = () => {
     const firstDate = getFirstDate();
     if (!firstDate) return 0;
     const start = new Date(firstDate);
-    const today = new Date();
-    return Math.floor((today - start) / (1000 * 60 * 60 * 24));
+    const end = getContractEndDate();
+    return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
   const allowedKm = Math.floor((getDaysSinceFirst() / 30) * 2500);
@@ -519,8 +535,31 @@ function KilometerTracker() {
         </div>
       )} */}
 
-      {!dateLocked && (
-        <>
+      {/* خانة تاريخ بداية العقد */}
+      {dateLocked && lastDate ? (
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ fontWeight: 'bold', color: '#6a1b9a', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
+            📅 Contract Start Date
+          </label>
+          <div style={{
+            background: '#fffde7',
+            color: '#b28704',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            padding: '8px 16px',
+            marginBottom: '4px',
+            letterSpacing: '1px',
+            boxShadow: '0 1px 4px rgba(178,135,4,0.07)'
+          }}>
+            {formatDateToDMY(lastDate)}
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ fontWeight: 'bold', color: '#6a1b9a', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
+            📅 Contract Start Date
+          </label>
           <input
             type="date"
             placeholder="📅 Contract Start Date"
@@ -536,8 +575,27 @@ function KilometerTracker() {
               Contract start date not found, please enter it manually.
             </p>
           )}
-        </>
+        </div>
       )}
+
+      {/* خانة اختيارية لإدخال تاريخ نهاية العقد */}
+      <div style={{ marginBottom: '8px' }}>
+        <label style={{ fontWeight: 'bold', color: '#b71c1c', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
+          🛑 Contract End Date (optional)
+        </label>
+        <input
+          type="date"
+          placeholder="📅 Contract End Date (optional)"
+          value={manualEndDate}
+          onChange={e => setManualEndDate(e.target.value)}
+          style={inputStyle}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+        />
+        <div style={{ color: '#b71c1c', fontSize: '13px', marginTop: '2px' }}>
+          If you enter this date, calculations will be up to this day only.
+        </div>
+      </div>
 
       <input
         type="number"
