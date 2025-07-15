@@ -50,6 +50,7 @@ function KilometerTracker() {
     setTimeout(() => setToastMsg(''), 2000);
   };
   const [manualEndDate, setManualEndDate] = useState<string>('');
+  const [endDateInputVisible, setEndDateInputVisible] = useState(true);
 
   const outInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -110,6 +111,7 @@ function KilometerTracker() {
         if (data.booking) setBooking(data.booking);
         if (data.contractData) setContractData(data.contractData);
         if (data.manualEndDate) setManualEndDate(data.manualEndDate);
+        if (typeof data.endDateInputVisible === 'boolean') setEndDateInputVisible(data.endDateInputVisible);
       } catch {}
     }
   }, []);
@@ -125,10 +127,11 @@ function KilometerTracker() {
       dateLocked,
       booking,
       contractData,
-      manualEndDate
+      manualEndDate,
+      endDateInputVisible
     };
     localStorage.setItem('km-tracker-data', JSON.stringify(dataToSave));
-  }, [logs, out, inVal, date, lastDate, dateLocked, booking, contractData, manualEndDate]);
+  }, [logs, out, inVal, date, lastDate, dateLocked, booking, contractData, manualEndDate, endDateInputVisible]);
 
   // عند تغيير رقم البوكينج، امسح السجلات والحقول
   useEffect(() => {
@@ -139,6 +142,7 @@ function KilometerTracker() {
     setLastDate('');
     setDateLocked(false);
     setManualEndDate('');
+    setEndDateInputVisible(true); // Reset visibility on booking change
     localStorage.removeItem('km-tracker-data');
   }, [booking]);
 
@@ -167,6 +171,8 @@ function KilometerTracker() {
     setDate('');
     setInputError('');
     if (outInputRef.current) outInputRef.current.focus();
+    if (logs.length === 0) setEndDateInputVisible(false); // Hide after first entry
+    setManualEndDate('');
   };
 
   const totalUsedKm = logs.reduce((acc, log) => acc + (log.inVal - log.out), 0);
@@ -423,6 +429,20 @@ function KilometerTracker() {
     e.target.style.background = '#fffbe7';
   };
 
+  // Helper to convert pasted date like '13/07/2025 16:54' to '2025-07-13'
+  const handleDatePaste = (e: React.ClipboardEvent<HTMLInputElement>, setter: (val: string) => void) => {
+    const pasted = e.clipboardData.getData('text');
+    // Match DD/MM/YYYY or DD/MM/YYYY HH:mm
+    const match = pasted.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (match) {
+      const [_, day, month, year] = match;
+      const formatted = `${year}-${month}-${day}`;
+      e.preventDefault();
+      setter(formatted);
+    }
+    // else allow default
+  };
+
   const buttonStyle = {
     padding: isMobile ? '10px' : '10px 20px',
     border: 'none',
@@ -569,6 +589,7 @@ function KilometerTracker() {
             onKeyDown={e => { if (e.key === 'Enter') handleAddLog(); }}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
+            onPaste={e => handleDatePaste(e, setDate)}
           />
           {contractData && (
             <p style={{ color: '#888', fontSize: '13px' }}>
@@ -579,23 +600,26 @@ function KilometerTracker() {
       )}
 
       {/* خانة اختيارية لإدخال تاريخ نهاية العقد */}
-      <div style={{ marginBottom: '8px' }}>
-        <label style={{ fontWeight: 'bold', color: '#b71c1c', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
-          🛑 Contract End Date (optional)
-        </label>
-        <input
-          type="date"
-          placeholder="📅 Contract End Date (optional)"
-          value={manualEndDate}
-          onChange={e => setManualEndDate(e.target.value)}
-          style={inputStyle}
-          onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
-        />
-        <div style={{ color: '#b71c1c', fontSize: '13px', marginTop: '2px' }}>
-          If you enter this date, calculations will be up to this day only.
+      {endDateInputVisible && (
+        <div style={{ marginBottom: '8px' }}>
+          <label style={{ fontWeight: 'bold', color: '#b71c1c', fontSize: '16px', display: 'block', marginBottom: '4px' }}>
+            🛑 Contract End Date (optional)
+          </label>
+          <input
+            type="date"
+            placeholder="📅 Contract End Date (optional)"
+            value={manualEndDate}
+            onChange={e => setManualEndDate(e.target.value)}
+            style={inputStyle}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onPaste={e => handleDatePaste(e, setManualEndDate)}
+          />
+          <div style={{ color: '#b71c1c', fontSize: '13px', marginTop: '2px' }}>
+            If you enter this date, calculations will be up to this day only.
+          </div>
         </div>
-      </div>
+      )}
 
       <input
         type="number"
