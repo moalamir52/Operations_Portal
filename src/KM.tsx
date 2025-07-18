@@ -377,6 +377,7 @@ function KilometerTracker() {
     setBooking('');
     setContractData(null);
     setError('');
+    setEndDateInputVisible(true); // أضفت هذا السطر ليظهر حقل نهاية العقد بعد الريسيت
     showToast('Reset completed!');
     localStorage.removeItem('km-tracker-data');
   };
