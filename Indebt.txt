@@ -1,0 +1,109 @@
+import React, { useState } from "react";
+import * as XLSX from "xlsx";
+
+function ReminderDue14Days() {
+  const [dueContracts, setDueContracts] = useState([]);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      const bstr = evt.target.result;
+      const workbook = XLSX.read(bstr, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      const processed = jsonData.map((row) => {
+        const dropRaw = row["Drop-off Date"];
+        let dropDate;
+
+        if (typeof dropRaw === 'number') {
+          const parsed = XLSX.SSF.parse_date_code(dropRaw);
+          dropDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+        } else if (typeof dropRaw === 'string') {
+          const parts = dropRaw.split(/[\s/:.-]+/);
+          if (parts.length >= 3) {
+            const [day, month, year] = parts.map((p) => parseInt(p));
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              dropDate = new Date(year, month - 1, day);
+            }
+          }
+        }
+
+        if (!dropDate || isNaN(dropDate)) return null;
+
+        const today = new Date();
+        const drop = new Date(dropDate.getFullYear(), dropDate.getMonth(), dropDate.getDate());
+        const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const diff = Math.floor((now - drop) / (1000 * 60 * 60 * 24));
+
+        return {
+          contract: row["Contract No."],
+          customer: row["Customer"],
+          dropDate: drop.toLocaleDateString('en-GB'),
+          closedBy: row["Closed By"],
+          days: diff,
+        };
+      }).filter(Boolean);
+
+      const due = processed.filter((r) => r.days === 13);
+      setDueContracts(due);
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSendEmail = () => {
+    const message = `Dear Team,\n\nPlease find below the list of customers whose contracts were closed 13 days ago. Kindly review their accounts and ensure any pending dues are settled promptly.\n\n` +
+      dueContracts.map(c => `Contract: ${c.contract} | Customer: ${c.customer} | Drop-off Date: ${c.dropDate}`).join("\n") +
+      "\n\nBest regards,\nYELO Team";
+
+    const mailtoLink = `mailto:?subject=Reminder: Contracts Closed 13 Days Ago&body=${encodeURIComponent(message)}`;
+    window.location.href = mailtoLink;
+  };
+
+  return (
+    <div className="p-4">
+      <h1 className="text-xl font-bold mb-4">📢 Contracts Closed 13 Days Ago</h1>
+      <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="mb-4" />
+
+      {dueContracts.length > 0 ? (
+        <>
+          <h2 className="text-lg font-semibold mb-2">✅ Total Contracts: {dueContracts.length}</h2>
+          <table className="table-auto border w-full text-sm mb-4">
+            <thead>
+              <tr>
+                <th className="border px-2">Contract No.</th>
+                <th className="border px-2">Customer</th>
+                <th className="border px-2">Drop-off Date</th>
+                <th className="border px-2">Closed By</th>
+                <th className="border px-2">Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dueContracts.map((row, idx) => (
+                <tr key={idx} className="text-center">
+                  <td className="border px-2">{row.contract}</td>
+                  <td className="border px-2">{row.customer}</td>
+                  <td className="border px-2">{row.dropDate}</td>
+                  <td className="border px-2">{row.closedBy}</td>
+                  <td className="border px-2">{row.days}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button onClick={handleSendEmail} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            📧 Send Email with Contract Details
+          </button>
+        </>
+      ) : (
+        <p className="text-green-700 mb-4">✅ No contracts reached day 13 yet.</p>
+      )}
+    </div>
+  );
+}
+
+export default ReminderDue14Days;
