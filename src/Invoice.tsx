@@ -58,9 +58,12 @@ const handleConvert = async () => {
     setStatus('Please upload an Excel file first');
     return;
   }
-  if (!selectedDate) {
-    setStatus('Please select the date first');
-    return;
+  // إذا لم يتم إدخال تاريخ، استخدم تاريخ اليوم
+  let invoiceDate = selectedDate;
+  if (!invoiceDate) {
+    const today = new Date();
+    invoiceDate = today.toISOString().split('T')[0]; // yyyy-mm-dd
+    setSelectedDate(invoiceDate);
   }
   if (!trnNumber) {
     setStatus('Please enter the TRN number first');
@@ -77,8 +80,8 @@ const handleConvert = async () => {
     const sections = rows.map((row, i) => {
       // إعداد خصائص الخط
       const fontProps = { font: 'Calibri', size: 22, color: '000000' }; // 22 = 11pt
-      // حساب رقم TRN للفاتورة الحالية
-      const currentTrnNumber = (parseInt(trnNumber) + i).toString();
+  // رقم TRN ثابت
+  const currentTrnNumber = trnNumber;
       // Determine Salik Date text
       let salikDateText = '';
       const startDate = formatExcelDate(row['Date']);
@@ -88,6 +91,8 @@ const handleConvert = async () => {
       } else {
         salikDateText = ` Salik Date: ${startDate}`;
       }
+    // استخراج رقم الفاتورة من الجدول إذا وجد
+    const invoiceNumber = row['INVOICE'] ? row['INVOICE'] : '';
       return {
         properties: {
           page: {
@@ -105,9 +110,9 @@ const handleConvert = async () => {
           new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
           new Paragraph({
             children: [
-              new TextRun({ text: `Date: ${selectedDate}`, ...fontProps }),
-              new TextRun({ text: '                                                                                ', ...fontProps }),
-              new TextRun({ text: 'Ref: ALWFQ', ...fontProps })
+              new TextRun({ text: `Date: ${invoiceDate}`, ...fontProps }),
+        new TextRun({ text: '                                                                                ', ...fontProps }),
+        new TextRun({ text: `Ref: ${invoiceNumber ? ' ' + invoiceNumber : ''}`, ...fontProps })
             ]
           }),
           new Paragraph({
@@ -129,11 +134,12 @@ const handleConvert = async () => {
           new Table({
             rows: [
               new TableRow({
+                height: { value: 800, rule: 'exact' },
                 children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'No.', ...fontProps, bold: true })] })], width: { size: 1000, type: 'dxa' } }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })] })], width: { size: 6000, type: 'dxa' } }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' } }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Price', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' } }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'No.', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 6000, type: 'dxa' }, verticalAlign: 'center' }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Price', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' })
                 ]
               }),
               new TableRow({
@@ -155,9 +161,25 @@ const handleConvert = async () => {
               }),
               new TableRow({
                 children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] })], columnSpan: 2 }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${row['Total Price'] || '0.00'}`, ...fontProps, bold: true })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] })],
+                    columnSpan: 2,
+                    borders: {
+                      top: { style: 'single' },
+                      left: { style: 'none', size: 4, color: '000000' },
+                      right: { style: 'none', size: 4, color: '000000' },
+                      bottom: { style: 'none', size: 4, color: '000000' }
+                    }
+                  }),
+                  new TableCell({
+                    children: [
+                      new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 36 })], alignment: 'center' })
+                    ],
+                    shading: { fill: 'D9D9D9' },
+                    rowSpan: 2,
+                    verticalAlign: 'center'
+                  }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${row['Total Price'] || '0.00'}`, ...fontProps, bold: true, size: 36 })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
                 ]
               })
             ]
@@ -205,10 +227,6 @@ const handleConvert = async () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label htmlFor="date-input" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>Select date:</label>
           <input id="date-input" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label htmlFor="trn-input" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>TRN number:</label>
-          <input id="trn-input" type="text" value={trnNumber} onChange={(e) => setTrnNumber(e.target.value)} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
         </div>
         <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 22, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 16, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Start Generate Files</button>
         {status && <div style={{ marginTop: 18, color: '#b71c1c', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>{status}</div>}
