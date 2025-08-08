@@ -84,9 +84,9 @@ const handleConvert = async () => {
       const startDate = formatExcelDate(row['Date']);
       const endDate = formatExcelDate(row['End Date']);
       if (endDate && endDate !== '') {
-        salikDateText = `Salik Date: ${startDate} - ${endDate}`;
+        salikDateText = ` Salik Date: ${startDate} - ${endDate}`;
       } else {
-        salikDateText = `Salik Date: ${startDate}`;
+        salikDateText = ` Salik Date: ${startDate}`;
       }
       return {
         properties: {
@@ -112,7 +112,7 @@ const handleConvert = async () => {
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `TRN#: ${currentTrnNumber}`, ...fontProps })
+              new TextRun({ text: `                                                                                                               TRN#: ${currentTrnNumber}`, ...fontProps })
             ]
           }),
           new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
@@ -141,10 +141,10 @@ const handleConvert = async () => {
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '1', ...fontProps })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
                   new TableCell({
                     children: [
-                      new Paragraph({ children: [new TextRun({ text: `Name: ${row['Customer'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: `Booking ID: ${row['Booking Number'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: `R/A: ${row['Contract No.'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: `Vehicle: ${row['Model'] || ''} ${row['Plate No.'] || ''}`, ...fontProps })] }),
+                      new Paragraph({ children: [new TextRun({ text: ` Name: ${row['Customer'] || ''}`, ...fontProps })] }),
+                      new Paragraph({ children: [new TextRun({ text: ` Booking ID: ${row['Booking Number'] || ''}`, ...fontProps })] }),
+                      new Paragraph({ children: [new TextRun({ text: ` R/A: ${row['Contract No.'] || ''}`, ...fontProps })] }),
+                      new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate No.'] || ''}`, ...fontProps })] }),
                       new Paragraph({ children: [new TextRun({ text: salikDateText, ...fontProps })] }),
                     ],
                     width: { size: 6000, type: 'dxa' }
@@ -168,7 +168,7 @@ const handleConvert = async () => {
           new Paragraph({ 
             children: [
               new TextRun({ text: 'Terms of Payment', ...fontProps }),
-              new TextRun({ text: ' : within 7 days', ...fontProps })
+              new TextRun({ text: '             : within 7 days', ...fontProps })
             ]
           }),
           new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
