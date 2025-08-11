@@ -1,219 +1,243 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ISectionOptions } from 'docx';
 import { saveAs } from 'file-saver';
+import JSZip from 'jszip';
+
+// Helper function to create an invoice section.
+// This logic was moved here to avoid code duplication.
+const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string): ISectionOptions => {
+  const fontProps = { font: 'Calibri', size: 22, color: '000000' }; // 22 = 11pt
+
+  // Helper function to format Excel's numeric date format
+  const formatExcelDate = (excelDate: any): string => {
+    if (!excelDate) return '';
+    // If the date is a number (Excel's date serial number)
+    if (typeof excelDate === 'number') {
+      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      return date.toLocaleDateString('en-GB'); // Format: DD/MM/YYYY
+    }
+    // If the date is already a string
+    if (typeof excelDate === 'string') {
+      return excelDate;
+    }
+    return '';
+  };
+
+  // Determine the Salik Date text based on whether an end date exists
+  let salikDateText = '';
+  const startDate = formatExcelDate(row['Date']);
+  const endDate = formatExcelDate(row['End Date']);
+  if (endDate && endDate !== '') {
+    salikDateText = ` Salik Date: ${startDate} - ${endDate}`;
+  } else {
+    salikDateText = ` Salik Date: ${startDate}`;
+  }
+
+  const invoiceNumber = row['INVOICE'] ? row['INVOICE'] : '';
+
+  return {
+    properties: {
+      page: {
+        margin: { top: 1440 }, // Margin in DXA (twentieth of a point)
+      },
+    },
+    children: [
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Tax Invoice', font: 'Arial', size: 52, bold: true, color: '000000' })], heading: 'Heading1' }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Date: ${invoiceDate}`, ...fontProps }),
+            new TextRun({ text: '                                                                                ', ...fontProps }),
+            new TextRun({ text: `Ref: ${invoiceNumber ? ' ' + invoiceNumber : ''}`, ...fontProps }),
+          ],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: `                                                                                                               TRN#: ${trnNumber}`, ...fontProps }),
+          ],
+        }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Invygo Tech FZ-LLC', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Dubai Internet City', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Dubai, U.A.E.', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'SUB: Micro Lease Cars', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Dear Sir,', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'We thank you for your business renting the below vehicle.', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        // Invoice Table
+        new Table({
+          rows: [
+            new TableRow({
+              height: { value: 800, rule: 'exact' },
+              children: [
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'No.', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 6000, type: 'dxa' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Price', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
+              ],
+            }),
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '1', ...fontProps })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
+                new TableCell({
+                  children: [
+                    new Paragraph({ children: [new TextRun({ text: ` Name: ${row['Customer'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` Booking ID: ${row['Booking Number'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` R/A: ${row['Contract No.'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate No.'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: salikDateText, ...fontProps })] }),
+                  ],
+                  width: { size: 6000, type: 'dxa' },
+                }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Salik Trips'] || '0'} Trips`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Total Price'] || '0.00'}`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
+              ],
+            }),
+            new TableRow({
+              children: [
+                new TableCell({
+                  children: [new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] })],
+                  columnSpan: 2,
+                  borders: {
+                    top: { style: 'single' },
+                    left: { style: 'none', size: 4, color: '000000' },
+                    right: { style: 'none', size: 4, color: '000000' },
+                    bottom: { style: 'none', size: 4, color: '000000' },
+                  },
+                }),
+                new TableCell({
+                  children: [
+                    new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 36 })], alignment: 'center' }),
+                  ],
+                  shading: { fill: 'D9D9D9' },
+                  rowSpan: 2,
+                  verticalAlign: 'center',
+                }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${row['Total Price'] || '0.00'}`, ...fontProps, bold: true, size: 36 })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
+              ],
+            }),
+          ],
+        }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'General Conditions:', ...fontProps, bold: true, underline: {} })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Terms of Payment', ...fontProps }),
+            new TextRun({ text: '             : within 7 days', ...fontProps }),
+          ],
+        }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Thanking you and assuring you of our best co-operation and services at all times.', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: 'Best Regards,', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
+        new Paragraph({
+          children: [
+            new TextRun({ text: 'Saudian Alwefaq Rent A Car', ...fontProps, bold: true }),
+          ],
+        }),
+    ],
+  };
+};
 
 function ExcelToWord() {
   const [excelFile, setExcelFile] = useState<File | null>(null);
-  const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [status, setStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [trnNumber, setTrnNumber] = useState('100397403500003');
+  // State for the new split files option
+  const [splitFiles, setSplitFiles] = useState(false);
 
-  // قراءة ملف Excel
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setExcelFile(e.target.files[0]);
     }
   };
 
-  // قراءة ملف Word (القالب)
-  const handleTemplateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setTemplateFile(e.target.files[0]);
+  const handleConvert = async () => {
+    if (!excelFile) {
+      setStatus('Please upload an Excel file first.');
+      return;
     }
-  };
 
-  // استخراج متغيرات من نص القالب
-  const extractVariables = (text: string) => {
-    const regex = /{{(\w+)}}/g;
-    const vars = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      vars.push(match[1]);
+    let invoiceDate = selectedDate;
+    if (!invoiceDate) {
+      const today = new Date();
+      invoiceDate = today.toISOString().split('T')[0]; // yyyy-mm-dd format
+      setSelectedDate(invoiceDate);
     }
-    return vars;
-  };
 
-  // تحويل تاريخ Excel إلى نص مقروء
-  const formatExcelDate = (excelDate: any) => {
-    if (!excelDate) return '';
-    
-    // إذا كان التاريخ رقم (Excel date)
-    if (typeof excelDate === 'number') {
-      const date = new Date((excelDate - 25569) * 86400 * 1000);
-      return date.toLocaleDateString('en-GB'); // تنسيق DD/MM/YYYY
+    if (!trnNumber) {
+      setStatus('Please enter the TRN number first.');
+      return;
     }
-    
-    // إذا كان التاريخ نص
-    if (typeof excelDate === 'string') {
-      return excelDate;
-    }
-    
-    return '';
-  };
-// Convert each row to a Word file
-const handleConvert = async () => {
-  if (!excelFile) {
-    setStatus('Please upload an Excel file first');
-    return;
-  }
-  // إذا لم يتم إدخال تاريخ، استخدم تاريخ اليوم
-  let invoiceDate = selectedDate;
-  if (!invoiceDate) {
-    const today = new Date();
-    invoiceDate = today.toISOString().split('T')[0]; // yyyy-mm-dd
-    setSelectedDate(invoiceDate);
-  }
-  if (!trnNumber) {
-    setStatus('Please enter the TRN number first');
-    return;
-  }
-  setStatus('Converting...');
-    // قراءة بيانات Excel
+
+    setStatus('Converting...');
+
     const data = await excelFile.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
-    // بناء الفاتورة لكل صف
-    const sections = rows.map((row, i) => {
-      // إعداد خصائص الخط
-      const fontProps = { font: 'Calibri', size: 22, color: '000000' }; // 22 = 11pt
-  // رقم TRN ثابت
-  const currentTrnNumber = trnNumber;
-      // Determine Salik Date text
-      let salikDateText = '';
-      const startDate = formatExcelDate(row['Date']);
-      const endDate = formatExcelDate(row['End Date']);
-      if (endDate && endDate !== '') {
-        salikDateText = ` Salik Date: ${startDate} - ${endDate}`;
-      } else {
-        salikDateText = ` Salik Date: ${startDate}`;
+    // Conditional logic based on user's choice
+    if (splitFiles) {
+      // --- Option 1: Create a ZIP file with individual invoices ---
+      setStatus(`Preparing ${rows.length} invoices in a ZIP file...`);
+
+      // Initialize JSZip
+      const zip = new JSZip();
+
+      for (const row of rows) {
+        // 1. Create the invoice section
+        const section = createInvoiceSection(row, invoiceDate, trnNumber);
+        const doc = new Document({ sections: [section] });
+
+        // 2. Pack the document into a blob
+        const buffer = await Packer.toBlob(doc);
+
+        // 3. Create a dynamic filename (and sanitize it)
+        const invoiceNum = row['INVOICE'] || 'NoRef';
+        const customerName = row['Customer'] || 'Customer';
+        const safeCustomerName = String(customerName).replace(/[^a-zA-Z0-9]/g, '_');
+        const filename = `Invoice_${invoiceNum}_${safeCustomerName}.docx`;
+
+        // 4. Add the generated file to the zip object in memory
+        zip.file(filename, buffer);
       }
-    // استخراج رقم الفاتورة من الجدول إذا وجد
-    const invoiceNumber = row['INVOICE'] ? row['INVOICE'] : '';
-      return {
-        properties: {
-          page: {
-            margin: { top: 1440 }
-          }
-        },
-        children: [
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Tax Invoice', font: 'Arial', size: 52, bold: true, color: '000000' })], heading: 'Heading1' }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `Date: ${invoiceDate}`, ...fontProps }),
-        new TextRun({ text: '                                                                                ', ...fontProps }),
-        new TextRun({ text: `Ref: ${invoiceNumber ? ' ' + invoiceNumber : ''}`, ...fontProps })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `                                                                                                               TRN#: ${currentTrnNumber}`, ...fontProps })
-            ]
-          }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Invygo Tech FZ-LLC', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Dubai Internet City', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Dubai, U.A.E.', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'SUB: Micro Lease Cars', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Dear Sir,', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'We thank you for your business renting the below vehicle.', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          // جدول الفاتورة
-          new Table({
-            rows: [
-              new TableRow({
-                height: { value: 800, rule: 'exact' },
-                children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'No.', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 6000, type: 'dxa' }, verticalAlign: 'center' }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Price', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' })
-                ]
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '1', ...fontProps })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
-                  new TableCell({
-                    children: [
-                      new Paragraph({ children: [new TextRun({ text: ` Name: ${row['Customer'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: ` Booking ID: ${row['Booking Number'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: ` R/A: ${row['Contract No.'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate No.'] || ''}`, ...fontProps })] }),
-                      new Paragraph({ children: [new TextRun({ text: salikDateText, ...fontProps })] }),
-                    ],
-                    width: { size: 6000, type: 'dxa' }
-                  }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Salik Trips'] || '0'} Trips`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Total Price'] || '0.00'}`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
-                ]
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] })],
-                    columnSpan: 2,
-                    borders: {
-                      top: { style: 'single' },
-                      left: { style: 'none', size: 4, color: '000000' },
-                      right: { style: 'none', size: 4, color: '000000' },
-                      bottom: { style: 'none', size: 4, color: '000000' }
-                    }
-                  }),
-                  new TableCell({
-                    children: [
-                      new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 36 })], alignment: 'center' })
-                    ],
-                    shading: { fill: 'D9D9D9' },
-                    rowSpan: 2,
-                    verticalAlign: 'center'
-                  }),
-                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${row['Total Price'] || '0.00'}`, ...fontProps, bold: true, size: 36 })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
-                ]
-              })
-            ]
-          }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'General Conditions:', ...fontProps, bold: true, underline: {} })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ 
-            children: [
-              new TextRun({ text: 'Terms of Payment', ...fontProps }),
-              new TextRun({ text: '             : within 7 days', ...fontProps })
-            ]
-          }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Thanking you and assuring you of our best co-operation and services at all times.', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: 'Best Regards,', ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({ children: [new TextRun({ text: '' , ...fontProps })] }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'Saudian Alwefaq Rent A Car', ...fontProps, bold: true })
-            ]
-          }),
-        ]
-      };
-    });
-    const doc = new Document({ sections });
-    const buffer = await Packer.toBlob(doc);
-    saveAs(buffer, 'invoices.docx');
-    setStatus('Done !');
+
+      // 5. After the loop, generate the final ZIP file
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+
+      // 6. Trigger a single download for the ZIP file
+      saveAs(zipContent, 'All_Invoices.zip');
+
+      setStatus('Success! A ZIP file with all invoices has been generated.');
+
+    } else {
+      // --- Option 2: Create a single combined Word file (default behavior) ---
+      const sections = rows.map((row) => {
+        return createInvoiceSection(row, invoiceDate, trnNumber);
+      });
+
+      const doc = new Document({ sections });
+      const buffer = await Packer.toBlob(doc);
+      saveAs(buffer, 'invoices.docx');
+      setStatus('Success!');
+    }
   };
 
   return (
@@ -228,7 +252,22 @@ const handleConvert = async () => {
           <label htmlFor="date-input" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>Select date:</label>
           <input id="date-input" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
         </div>
-        <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 22, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 16, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Start Generate Files</button>
+
+        {/* --- The new checkbox option --- */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px', background: 'rgba(106, 27, 154, 0.05)', borderRadius: 8 }}>
+          <input
+            id="split-files-checkbox"
+            type="checkbox"
+            checked={splitFiles}
+            onChange={(e) => setSplitFiles(e.target.checked)}
+            style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#6a1b9a' }}
+          />
+          <label htmlFor="split-files-checkbox" style={{ fontSize: 16, fontWeight: 500, color: '#333', cursor: 'pointer' }}>
+            Generate a separate file for each invoice (in a ZIP)
+          </label>
+        </div>
+
+        <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 22, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 16, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Start Generating Files</button>
         {status && <div style={{ marginTop: 18, color: '#b71c1c', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>{status}</div>}
       </div>
     </div>
