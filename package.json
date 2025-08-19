@@ -1,8 +1,8 @@
 {
-  "name": "indebet",
+  "name": "Operations_Portal",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://github.com/moalamir52/Operations_Portal",
+  "homepage": "https://moalamir52.github.io/Operations_Portal/",
   "dependencies": {
     "docx": "^9.5.1",
     "docxtemplater": "^3.65.2",
