@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import ContractVlookup from "./ContractVlookup.tsx";
 import Fleet from "./Fleet.tsx";
 import KilometerTracker from './KM.tsx';
-import ExcelToWord from './Invoice.tsx';
+import ExcelToWord from './Salik.tsx';
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
@@ -507,9 +507,9 @@ function App() {
               style={buttonStyle}
               onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
               onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-              onClick={() => setView("invoice")}
+              onClick={() => setView("Salik")}
             >
-              🧾 Invoice
+              🧾 Salik
             </button>
 
         </>
@@ -584,7 +584,7 @@ function App() {
           <KilometerTracker />
         </>
       )}
-      {view === "invoice" && (
+      {view === "Salik" && (
         <>
           <button onClick={() => setView("home")} style={{
             padding: "15px 30px",
