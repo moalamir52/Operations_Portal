@@ -4,11 +4,11 @@ import ContractVlookup from "./ContractVlookup.tsx";
 import Fleet from "./Fleet.tsx";
 import KilometerTracker from './KM.tsx';
 import ExcelToWord from './Salik.tsx';
+import Parking from './Parking.tsx';
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
-  const [emailTarget, setEmailTarget] = useState("dubai"); // ✅ مهم جداً
-
+  const [emailTarget, setEmailTarget] = useState("dubai");
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -22,60 +22,43 @@ function ReminderDue14Days() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
       const processed = jsonData.map((row, index) => {
-  const pickupRaw = row["Pick-up Date"];
-  let pickupDate;
+        const pickupRaw = row["Pick-up Date"];
+        let pickupDate;
 
-  // Better date parsing for Excel dates
-  if (typeof pickupRaw === "number") {
-    // Excel date number
-    const parsed = XLSX.SSF.parse_date_code(pickupRaw);
-    pickupDate = new Date(parsed.y, parsed.m - 1, parsed.d);
-  } else if (typeof pickupRaw === "string") {
-    // String date - try multiple formats
-    const parts = pickupRaw.split(/[\s/:.-]+/);
-    if (parts.length >= 3) {
-      const [day, month, year] = parts.map((p) => parseInt(p));
-      if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-        // Handle 2-digit years
-        const fullYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
-        pickupDate = new Date(fullYear, month - 1, day);
-      }
-    }
-  }
+        if (typeof pickupRaw === "number") {
+          const parsed = XLSX.SSF.parse_date_code(pickupRaw);
+          pickupDate = new Date(parsed.y, parsed.m - 1, parsed.d);
+        } else if (typeof pickupRaw === "string") {
+          const parts = pickupRaw.split(/[\s/:.-]+/);
+          if (parts.length >= 3) {
+            const [day, month, year] = parts.map((p) => parseInt(p));
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              const fullYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
+              pickupDate = new Date(fullYear, month - 1, day);
+            }
+          }
+        }
 
-  if (!pickupDate || isNaN(pickupDate)) {
-    console.warn(`Invalid pickup date for row ${index + 1}:`, pickupRaw);
-    return null;
-  }
+        if (!pickupDate || isNaN(pickupDate)) {
+          console.warn(`Invalid pickup date for row ${index + 1}:`, pickupRaw);
+          return null;
+        }
 
-  const today = new Date();
-  const pickup = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
-  const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const today = new Date();
+        const pickup = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+        const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const diff = Math.floor((now - pickup) / (1000 * 60 * 60 * 24));
 
-  const diff = Math.floor((now - pickup) / (1000 * 60 * 60 * 24));
-
-  // Ensure all fields are properly extracted and formatted
-  const processedRow = {
-    contract: row["Contract No."] || "",
-    customer: row["Customer"] || "",
-    pickupDate: pickup.toLocaleDateString("en-GB"),
-    dropDate: pickup.toLocaleDateString("en-GB"),
-    days: diff,
-    closedBy: row["Closed By"] || "",
-    branch: row["Pick-up Branch"] || row["Branch"] || "",
-  };
-
-  // Debug log for the first few rows
-  if (index < 3) {
-    console.log(`Processing row ${index + 1}:`, {
-      original: row,
-      processed: processedRow
-    });
-  }
-
-  return processedRow;
-}).filter(Boolean);
-
+        return {
+          contract: row["Contract No."] || "",
+          customer: row["Customer"] || "",
+          pickupDate: pickup.toLocaleDateString("en-GB"),
+          dropDate: pickup.toLocaleDateString("en-GB"),
+          days: diff,
+          closedBy: row["Closed By"] || "",
+          branch: row["Pick-up Branch"] || row["Branch"] || "",
+        };
+      }).filter(Boolean);
 
       const due = processed.filter((r) => r.days === 13);
       setDueContracts(due);
@@ -85,20 +68,16 @@ function ReminderDue14Days() {
   };
 
   const handleSendEmail = () => {
-    // Create formatted table for clipboard
-    const tableData = dueContracts.map((row, i) => {
-      return {
-        no: i + 1,
-        contract: row.contract || "",
-        customer: row.customer || "",
-        pickupDate: row.pickupDate || "",
-        days: row.days || 0,
-        closedBy: row.closedBy || "",
-        branch: row.branch || ""
-      };
-    });
+    const tableData = dueContracts.map((row, i) => ({
+      no: i + 1,
+      contract: row.contract || "",
+      customer: row.customer || "",
+      pickupDate: row.pickupDate || "",
+      days: row.days || 0,
+      closedBy: row.closedBy || "",
+      branch: row.branch || ""
+    }));
 
-    // Create HTML table for clipboard
     const htmlTable = `
       <table style="border-collapse: collapse; width: 100%; margin: 20px 0; font-family: Arial, sans-serif;">
         <thead>
@@ -128,15 +107,12 @@ function ReminderDue14Days() {
       </table>
     `;
 
-    // Create plain text version as fallback
     const plainText = tableData.map((row, i) => 
       `${row.no}. Contract: ${row.contract} | Customer: ${row.customer} | Pick-up: ${row.pickupDate} | Days: ${row.days} | Branch: ${row.branch}`
     ).join('\n');
 
-    // Copy to clipboard
     const copyToClipboard = async () => {
       try {
-        // Try to copy HTML first
         const clipboardItem = new ClipboardItem({
           'text/html': new Blob([htmlTable], { type: 'text/html' }),
           'text/plain': new Blob([plainText], { type: 'text/plain' })
@@ -144,11 +120,9 @@ function ReminderDue14Days() {
         
         await navigator.clipboard.write([clipboardItem]);
         
-        // Open email client
         const header = `Dear Team,%0D%0A%0D%0AThe following contracts were opened 13 days ago. Kindly review them, ensure all dues are settled, and update the status accordingly..%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
         const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
 
-        // تحديد الجهة المستلمة بناءً على الاختيار
         let to = "";
         let cc = "a.naseer@iyelo.com";
 
@@ -163,10 +137,8 @@ function ReminderDue14Days() {
         window.location.href = mailtoLink;
         
       } catch (err) {
-        // Fallback to plain text copy
         await navigator.clipboard.writeText(plainText);
         
-        // Open email client
         const header = `Dear Team,%0D%0A%0D%0AThe following contracts were opened 13 days ago. Kindly review them, ensure all dues are settled, and update the status accordingly..%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
         const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
 
@@ -188,7 +160,6 @@ function ReminderDue14Days() {
     copyToClipboard();
   };
 
-
   const styles = {
     container: {
       fontFamily: "Arial",
@@ -208,15 +179,6 @@ function ReminderDue14Days() {
       justifyContent: "center",
       alignItems: "center",
       boxShadow: "0 6px 12px rgba(105, 27, 154, 0.65)",
-    },
-    backBtn: {
-      backgroundColor: "#6a1b9a",
-      color: "#fff",
-      padding: "8px 14px",
-      borderRadius: "8px",
-      fontWeight: "bold",
-      textDecoration: "none",
-      fontSize: "14px",
     },
     title: {
       fontSize: "18px",
@@ -286,63 +248,62 @@ function ReminderDue14Days() {
 
         {dueContracts.length > 0 ? (
           <>
-          <div style={{ marginBottom: "20px" }}>
-  <strong>Select Email Target:</strong><br />
-  <div style={{ marginBottom: "30px", textAlign: "center" }}>
-  <button
-    onClick={() => setEmailTarget("dubai")}
-    style={{
-      margin: "10px",
-      padding: "10px 20px",
-      backgroundColor: emailTarget === "dubai" ? "#6a1b9a" : "#ffd54f",
-      color: emailTarget === "dubai" ? "#ffd54f" : "#6a1b9a",
-      border: "none",
-      borderRadius: "8px",
-      fontWeight: "bold",
-      fontSize: "16px",
-      cursor: "pointer",
-      display: "inline-flex",
-      alignItems: "center",
-      transition: "all 0.3s ease"
-    }}
-  >
-    <img
-      src="https://flagcdn.com/w40/ae.png"
-      alt="UAE"
-      width="24"
-      style={{ marginRight: "8px", borderRadius: "4px" }}
-    />
-    Dubai
-  </button>
+            <div style={{ marginBottom: "20px" }}>
+              <strong>Select Email Target:</strong><br />
+              <div style={{ marginBottom: "30px", textAlign: "center" }}>
+                <button
+                  onClick={() => setEmailTarget("dubai")}
+                  style={{
+                    margin: "10px",
+                    padding: "10px 20px",
+                    backgroundColor: emailTarget === "dubai" ? "#6a1b9a" : "#ffd54f",
+                    color: emailTarget === "dubai" ? "#ffd54f" : "#6a1b9a",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontWeight: "bold",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  <img
+                    src="https://flagcdn.com/w40/ae.png"
+                    alt="UAE"
+                    width="24"
+                    style={{ marginRight: "8px", borderRadius: "4px" }}
+                  />
+                  Dubai
+                </button>
 
-  <button
-    onClick={() => setEmailTarget("oman")}
-    style={{
-      margin: "10px",
-      padding: "10px 20px",
-      backgroundColor: emailTarget === "oman" ? "#6a1b9a" : "#ffd54f",
-      color: emailTarget === "oman" ? "#ffd54f" : "#6a1b9a",
-      border: "none",
-      borderRadius: "8px",
-      fontWeight: "bold",
-      fontSize: "16px",
-      cursor: "pointer",
-      display: "inline-flex",
-      alignItems: "center",
-      transition: "all 0.3s ease"
-    }}
-  >
-    <img
-      src="https://flagcdn.com/w40/om.png"
-      alt="Oman"
-      width="24"
-      style={{ marginRight: "8px", borderRadius: "4px" }}
-    />
-    Oman
-  </button>
-</div>
-
-</div>
+                <button
+                  onClick={() => setEmailTarget("oman")}
+                  style={{
+                    margin: "10px",
+                    padding: "10px 20px",
+                    backgroundColor: emailTarget === "oman" ? "#6a1b9a" : "#ffd54f",
+                    color: emailTarget === "oman" ? "#ffd54f" : "#6a1b9a",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontWeight: "bold",
+                    fontSize: "16px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  <img
+                    src="https://flagcdn.com/w40/om.png"
+                    alt="Oman"
+                    width="24"
+                    style={{ marginRight: "8px", borderRadius: "4px" }}
+                  />
+                  Oman
+                </button>
+              </div>
+            </div>
 
             <table style={styles.table}>
               <thead>
@@ -503,15 +464,22 @@ function App() {
           >
             🧮 Mileage Calculator
           </button>
-            <button
-              style={buttonStyle}
-              onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
-              onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-              onClick={() => setView("Salik")}
-            >
-              🧾 Salik
-            </button>
-
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("Salik")}
+          >
+            🧾 Salik
+          </button>
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("parking")}
+          >
+            🅿️ Parking
+          </button>
         </>
       )}
 
@@ -550,23 +518,25 @@ function App() {
           <ContractVlookup />
         </>
       )}
+
       {view === "fleet" && (
-  <>
-    <button onClick={() => setView("home")} style={{
-      padding: "15px 30px",
-      margin: "15px",
-      fontSize: "16px",
-      fontWeight: "bold",
-      borderRadius: "10px",
-      border: "none",
-      cursor: "pointer",
-      backgroundColor: "#ffd54f",
-      borderBottom: "4px solid #6a1b9a",
-      color: "#4a148c",
-    }}>⬅ Back</button>
-    <Fleet />
-  </>
-)}
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <Fleet />
+        </>
+      )}
+
       {view === "kilometer" && (
         <>
           <button onClick={() => setView("home")} style={{
@@ -584,6 +554,7 @@ function App() {
           <KilometerTracker />
         </>
       )}
+
       {view === "Salik" && (
         <>
           <button onClick={() => setView("home")} style={{
@@ -601,17 +572,35 @@ function App() {
           <ExcelToWord />
         </>
       )}
-<div style={{
-  textAlign: "center",
-  marginTop: 40,
-  padding: 16,
-  fontSize: 14,
-  color: "#888",
-  borderTop: "1px solid #eee"
-}}>
-  © {new Date().getFullYear()} Mohamed Alamir. All rights reserved.
-</div>
 
+      {view === "parking" && (
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <Parking />
+        </>
+      )}
+
+      <div style={{
+        textAlign: "center",
+        marginTop: 40,
+        padding: 16,
+        fontSize: 14,
+        color: "#888",
+        borderTop: "1px solid #eee"
+      }}>
+        © {new Date().getFullYear()} Mohamed Alamir. All rights reserved.
+      </div>
     </div>
   );
 }
