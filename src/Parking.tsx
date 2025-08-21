@@ -82,7 +82,7 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '1', ...fontProps })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
                 new TableCell({
                   children: [
-                    new Paragraph({ children: [new TextRun({ text: ` Name: ${row['Customer'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` Name: ${row['Customer Name:'] || row['Customer Name'] || row['Customer'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: ` Booking ID: ${row['Dealer_Booking_Number'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: ` R/A: ${row['Contract'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate_Number'] || ''}`, ...fontProps })] }),
