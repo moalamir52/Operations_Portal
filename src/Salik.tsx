@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ISectionOptions } from 'docx';
 import { saveAs } from 'file-saver';
-import JSZip from 'jszip';
+
+
+// Helper function to format price with two decimal places
+const formatPrice = (price: any): string => {
+  const numPrice = parseFloat(price) || 0;
+  return numPrice.toFixed(2);
+};
 
 // Helper function to create an invoice section.
 // This logic was moved here to avoid code duplication.
@@ -99,7 +105,7 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                   width: { size: 6000, type: 'dxa' },
                 }),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Salik Trips'] || '0'} Trips`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Total Price'] || '0.00'}`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${formatPrice(row['Total Price'])}`, ...fontProps })], alignment: 'right' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center', margins: { right: 144 } }),
               ],
             }),
             new TableRow({
@@ -116,13 +122,13 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                 }),
                 new TableCell({
                   children: [
-                    new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 36 })], alignment: 'center' }),
+                    new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 30 })], alignment: 'center' }),
                   ],
                   shading: { fill: 'D9D9D9' },
                   rowSpan: 2,
                   verticalAlign: 'center',
                 }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${row['Total Price'] || '0.00'}`, ...fontProps, bold: true, size: 36 })], alignment: 'center' })], shading: { fill: 'D9D9D9' } }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${formatPrice(row['Total Price'])}`, ...fontProps, bold: true, size: 30 })], alignment: 'right' })], shading: { fill: 'D9D9D9' }, margins: { right: 144 } }),
               ],
             }),
           ],
@@ -159,8 +165,7 @@ function ExcelToWord() {
   const [status, setStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [trnNumber, setTrnNumber] = useState('100397403500003');
-  // State for the new split files option
-  const [splitFiles, setSplitFiles] = useState(false);
+
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -193,51 +198,14 @@ function ExcelToWord() {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
-    // Conditional logic based on user's choice
-    if (splitFiles) {
-      // --- Option 1: Create a ZIP file with individual invoices ---
-      setStatus(`Preparing ${rows.length} invoices in a ZIP file...`);
+    const sections = rows.map((row) => {
+      return createInvoiceSection(row, invoiceDate, trnNumber);
+    });
 
-      // Initialize JSZip
-      const zip = new JSZip();
-
-      for (const row of rows) {
-        // 1. Create the invoice section
-        const section = createInvoiceSection(row, invoiceDate, trnNumber);
-        const doc = new Document({ sections: [section] });
-
-        // 2. Pack the document into a blob
-        const buffer = await Packer.toBlob(doc);
-
-        // 3. Create a dynamic filename (and sanitize it)
-        const invoiceNum = row['INVOICE'] || 'NoRef';
-        const customerName = row['Customer'] || 'Customer';
-        const safeCustomerName = String(customerName).replace(/[^a-zA-Z0-9]/g, '_');
-        const filename = `Invoice_${invoiceNum}_${safeCustomerName}.docx`;
-
-        // 4. Add the generated file to the zip object in memory
-        zip.file(filename, buffer);
-      }
-
-      // 5. After the loop, generate the final ZIP file
-      const zipContent = await zip.generateAsync({ type: 'blob' });
-
-      // 6. Trigger a single download for the ZIP file
-      saveAs(zipContent, 'All_Invoices.zip');
-
-      setStatus('Success! A ZIP file with all invoices has been generated.');
-
-    } else {
-      // --- Option 2: Create a single combined Word file (default behavior) ---
-      const sections = rows.map((row) => {
-        return createInvoiceSection(row, invoiceDate, trnNumber);
-      });
-
-      const doc = new Document({ sections });
-      const buffer = await Packer.toBlob(doc);
-      saveAs(buffer, 'invoices.docx');
-      setStatus('Success!');
-    }
+    const doc = new Document({ sections });
+    const buffer = await Packer.toBlob(doc);
+    saveAs(buffer, 'invoices.docx');
+    setStatus('Success!');
   };
 
   return (
@@ -253,19 +221,7 @@ function ExcelToWord() {
           <input id="date-input" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
         </div>
 
-        {/* --- The new checkbox option --- */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px', background: 'rgba(106, 27, 154, 0.05)', borderRadius: 8 }}>
-          <input
-            id="split-files-checkbox"
-            type="checkbox"
-            checked={splitFiles}
-            onChange={(e) => setSplitFiles(e.target.checked)}
-            style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#6a1b9a' }}
-          />
-          <label htmlFor="split-files-checkbox" style={{ fontSize: 16, fontWeight: 500, color: '#333', cursor: 'pointer' }}>
-            Generate a separate file for each invoice (in a ZIP)
-          </label>
-        </div>
+
 
         <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 22, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 16, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Start Generating Files</button>
         {status && <div style={{ marginTop: 18, color: '#b71c1c', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>{status}</div>}
