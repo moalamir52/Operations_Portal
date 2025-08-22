@@ -28,6 +28,37 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
 
   const invoiceNumber = row['Tax_Invoice_No'] ? row['Tax_Invoice_No'] : '';
 
+  // Function to calculate exit date
+  const calculateExitDate = (entryDate: string, entryTime: string, exitTime: string): string => {
+    if (!entryDate || !entryTime || !exitTime) return entryDate || '';
+    
+    // Convert times to 24-hour format for comparison
+    const parseTime = (timeStr: string): number => {
+      const time = timeStr.toLowerCase().trim();
+      let [hours, minutes] = time.replace(/[ap]m/, '').split(':').map(Number);
+      if (time.includes('pm') && hours !== 12) hours += 12;
+      if (time.includes('am') && hours === 12) hours = 0;
+      return hours * 60 + (minutes || 0);
+    };
+    
+    const entryMinutes = parseTime(entryTime);
+    const exitMinutes = parseTime(exitTime);
+    
+    // If exit time is earlier than entry time, it's the next day
+    if (exitMinutes < entryMinutes) {
+      // Parse DD/MM/YYYY format
+      const [day, month, year] = entryDate.split('/').map(Number);
+      const date = new Date(year, month - 1, day);
+      date.setDate(date.getDate() + 1);
+      return date.toLocaleDateString('en-GB');
+    }
+    
+    return entryDate;
+  };
+
+  const formattedDate = formatExcelDate(row['Date']);
+  const exitDate = calculateExitDate(formattedDate, row['Time_In'] || '', row['Time_Out'] || '');
+
   return {
     properties: {
       page: {
@@ -86,6 +117,8 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                     new Paragraph({ children: [new TextRun({ text: ` Booking ID: ${row['Dealer_Booking_Number'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: ` R/A: ${row['Contract'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate_Number'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` Entry: ${formatExcelDate(row['Date'])} - ${row['Time_In'] || ''}`, ...fontProps })] }),
+                    new Paragraph({ children: [new TextRun({ text: ` Exit: ${exitDate} - ${row['Time_Out'] || ''}`, ...fontProps })] }),
                   ],
                   width: { size: 6000, type: 'dxa' },
                 }),
