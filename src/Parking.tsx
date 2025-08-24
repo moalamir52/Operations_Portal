@@ -34,6 +34,7 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
     
     // Convert times to 24-hour format for comparison
     const parseTime = (timeStr: string): number => {
+      if (!timeStr || typeof timeStr !== 'string') return 0;
       const time = timeStr.toLowerCase().trim();
       let [hours, minutes] = time.replace(/[ap]m/, '').split(':').map(Number);
       if (time.includes('pm') && hours !== 12) hours += 12;
