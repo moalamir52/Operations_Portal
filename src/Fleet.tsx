@@ -30,6 +30,17 @@ export default function ContractVlookup() {
   };
 
   const [refData, setRefData] = useState([]);
+
+  // دالة لتحميل نموذج التمبليت
+  const downloadTemplate = () => {
+    const template = [
+      { plate: '', model: '', chassis: '', regExpiry: '', insExpiry: '', color: '' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "YELO_Fleet_Template.xlsx");
+  };
   const [uploadedData, setUploadedData] = useState([]);
   const [results, setResults] = useState(() => {
     const saved = localStorage.getItem('vlookupResults');
@@ -148,9 +159,62 @@ export default function ContractVlookup() {
           Upload Excel File
           <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: "none" }} />
         </label>
-        <button onClick={() => setResults([])} style={{ background: yeloColors.error, color: yeloColors.white, padding: "10px 20px", borderRadius: 5, fontWeight: "bold", boxShadow: `0 3px 0 #b71c1c`, border: "none" }}>Clear Results</button>
-        <button onClick={copySelectedColumns} style={{ background: yeloColors.primary, color: yeloColors.secondary, padding: "10px 20px", borderRadius: 5, fontWeight: "bold", boxShadow: `0 3px 0 ${yeloColors.darkPurple}`, border: "none" }}>Copy Selected Columns</button>
-        <button onClick={exportToExcel} style={{ background: yeloColors.secondary, color: yeloColors.white, padding: "10px 20px", borderRadius: 5, fontWeight: "bold", boxShadow: `0 3px 0 ${yeloColors.darkPurple}`, border: "none" }}>Export to Excel</button>
+        <button
+          onClick={downloadTemplate}
+          style={{
+            background: yeloColors.lightPurple,
+            color: yeloColors.white,
+            padding: "10px 20px",
+            borderRadius: 5,
+            fontWeight: "bold",
+            boxShadow: `0 3px 0 ${yeloColors.secondary}`,
+            border: "none"
+          }}
+        >
+          Download Template
+        </button>
+        <button
+          onClick={() => setResults([])}
+          style={{
+            background: yeloColors.error,
+            color: yeloColors.white,
+            padding: "10px 20px",
+            borderRadius: 5,
+            fontWeight: "bold",
+            boxShadow: "0 3px 0 #b71c1c",
+            border: "none"
+          }}
+        >
+          Clear Results
+        </button>
+        <button
+          onClick={copySelectedColumns}
+          style={{
+            background: yeloColors.primary,
+            color: yeloColors.secondary,
+            padding: "10px 20px",
+            borderRadius: 5,
+            fontWeight: "bold",
+            boxShadow: `0 3px 0 ${yeloColors.darkPurple}`,
+            border: "none"
+          }}
+        >
+          Copy Selected Columns
+        </button>
+        <button
+          onClick={exportToExcel}
+          style={{
+            background: yeloColors.secondary,
+            color: yeloColors.white,
+            padding: "10px 20px",
+            borderRadius: 5,
+            fontWeight: "bold",
+            boxShadow: `0 3px 0 ${yeloColors.darkPurple}`,
+            border: "none"
+          }}
+        >
+          Export to Excel
+        </button>
       </div>
 
       <div style={{ marginBottom: 15, textAlign: "center" }}>

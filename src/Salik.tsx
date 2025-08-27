@@ -3,6 +3,30 @@ import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ISectionOptions } from 'docx';
 import { saveAs } from 'file-saver';
 
+// دالة لتحميل تمبليت Excel بالأعمدة المطلوبة لهذا الكود
+const downloadExcelTemplate = () => {
+  const headers = [
+    [
+      'INVOICE',
+      'Customer',
+      'Booking Number',
+      'Contract No.',
+      'Model',
+      'Plate No.',
+      'Date',
+      'End Date',
+      'Salik Trips',
+      'Total Price',
+    ],
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet(headers);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+  const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  saveAs(blob, 'Salik-Invoice-Template.xlsx');
+};
+
 
 // Helper function to format price with two decimal places
 const formatPrice = (price: any): string => {
@@ -215,6 +239,24 @@ function ExcelToWord() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label htmlFor="excel-upload" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>Excel file:</label>
           <input id="excel-upload" type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
+            <button
+              type="button"
+              onClick={downloadExcelTemplate}
+              style={{
+                marginTop: 10,
+                background: 'linear-gradient(90deg, #43cea2 0%, #185a9d 100%)',
+                color: '#fff',
+                padding: '10px 0',
+                fontSize: 18,
+                fontWeight: 600,
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(24,90,157,0.10)'
+              }}
+            >
+              Download Excel Template
+            </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label htmlFor="date-input" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>Select date:</label>
