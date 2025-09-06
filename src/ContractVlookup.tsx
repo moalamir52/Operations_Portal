@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { fetchCarsDatabase } from "./utils/carsDatabase.ts";
 
 export default function ContractVlookup() {
   // YELO Official Colors - Removed Gray
@@ -101,7 +102,7 @@ export default function ContractVlookup() {
     
     setIsLoading(true);
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: "array" });
@@ -113,7 +114,7 @@ export default function ContractVlookup() {
         localStorage.setItem('uploadedFile', JSON.stringify(json));
         
         // Perform VLOOKUP automatically after upload
-        performVlookup(json);
+        await performVlookup(json);
       } catch (err) {
         setError("Error processing file: " + err.message);
       } finally {
@@ -127,7 +128,10 @@ export default function ContractVlookup() {
     reader.readAsArrayBuffer(file);
   };
 
-  const performVlookup = (uploadedData) => {
+  const performVlookup = async (uploadedData) => {
+    // جلب قاعدة بيانات السيارات
+    const carsMap = await fetchCarsDatabase();
+    
     // Create lookup map for better performance
     const uploadedMap = new Map();
     uploadedData.forEach(row => {
@@ -139,10 +143,30 @@ export default function ContractVlookup() {
       const contractNoRaw = refRow["Contract No."];
       const contractNo = contractNoRaw?.toString().trim().toLowerCase();
       const match = uploadedMap.get(contractNo);
+      
+      // الحصول على موديل السيارة من قاعدة البيانات الثابتة
+      const plateNo = match?.["Plate No."];
+      let carModel = match?.["Model"] || "❌";
+      
+      if (plateNo && carModel === "❌") {
+        const normalizedPlate = plateNo.toString().trim().toLowerCase();
+        const dbModel = carsMap.get(normalizedPlate);
+        if (dbModel) {
+          carModel = dbModel;
+        }
+      } else if (plateNo && carModel !== "❌") {
+        // استبدال الموديل من الملف بالموديل من قاعدة البيانات
+        const normalizedPlate = plateNo.toString().trim().toLowerCase();
+        const dbModel = carsMap.get(normalizedPlate);
+        if (dbModel) {
+          carModel = dbModel;
+        }
+      }
+      
       return {
-        contract: contractNoRaw?.toString().trim() || "❌", // نعرض الرقم الأصلي بدون تغيير حالة الأحرف
-        plate: match?.["Plate No."] || "❌",
-        model: match?.["Model"] || "❌",
+        contract: contractNoRaw?.toString().trim() || "❌",
+        plate: plateNo || "❌",
+        model: carModel,
         pickup: match?.["Pick-up Date"] || "❌",
         dropoff: match?.["Drop-off Date"] || "❌",
       };
