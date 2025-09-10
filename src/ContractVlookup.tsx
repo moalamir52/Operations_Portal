@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { fetchCarsDatabase } from "./utils/carsDatabase.ts";
+import { fetchCarsDatabase, clearCarsCache } from "./utils/carsDatabase.ts";
 
 export default function ContractVlookup() {
   // YELO Official Colors - Removed Gray
@@ -32,6 +32,8 @@ export default function ContractVlookup() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
+  const [showOnlyMissing, setShowOnlyMissing] = useState(false);
   
   // Counter for missing data
   const getMissingRecords = () => {
@@ -40,6 +42,8 @@ export default function ContractVlookup() {
     return results.filter(record => 
       record.plate === "❌" || 
       record.model === "❌" || 
+      record.invygo === "❌" || 
+      record.refModel === "❌" || 
       record.pickup === "❌" || 
       record.dropoff === "❌"
     ).length;
@@ -49,6 +53,17 @@ export default function ContractVlookup() {
     if (!results.length) return 0;
     
     return results.length - getMissingRecords();
+  };
+  
+  // Counter for plate number differences
+  const getDifferentPlatesRecords = () => {
+    if (!results.length) return 0;
+    
+    return results.filter(record => {
+      const plateNo = record.plate?.toString().trim().toLowerCase();
+      const invygoPlate = record.invygo?.toString().trim().toLowerCase();
+      return plateNo !== "❌" && invygoPlate !== "❌" && plateNo !== invygoPlate;
+    }).length;
   };
 
   // Styles based on YELO official colors
@@ -163,10 +178,27 @@ export default function ContractVlookup() {
         }
       }
       
+      // عمود INVYGO - عرض أرقام اللوحات كما هي من الشيت
+      const invygoPlate = refRow["INVYGO"] || "❌";
+      
+      // عمود Model - يأخذ رقم اللوحة من عمود INVYGO ويبحث عنه في قاعدة البيانات
+      let refModelFormatted = "❌";
+      if (invygoPlate && invygoPlate !== "❌") {
+        const normalizedInvygoPlate = invygoPlate.toString().trim().toLowerCase();
+        const dbRefModel = carsMap.get(normalizedInvygoPlate);
+        if (dbRefModel) {
+          refModelFormatted = dbRefModel;
+        } else {
+          refModelFormatted = invygoPlate; // إذا لم يوجد في قاعدة البيانات، اعرض الرقم
+        }
+      }
+      
       return {
         contract: contractNoRaw?.toString().trim() || "❌",
         plate: plateNo || "❌",
         model: carModel,
+        invygo: invygoPlate,
+        refModel: refModelFormatted,
         pickup: match?.["Pick-up Date"] || "❌",
         dropoff: match?.["Drop-off Date"] || "❌",
       };
@@ -224,10 +256,10 @@ export default function ContractVlookup() {
   };
 
   const toggleAllColumns = () => {
-    if (selectedColumns.length === 5) { // all columns are selected
+    if (selectedColumns.length === 7) { // all columns are selected
       setSelectedColumns([]);
     } else {
-      setSelectedColumns(['contract', 'plate', 'model', 'pickup', 'dropoff']);
+      setSelectedColumns(['contract', 'plate', 'model', 'invygo', 'refModel', 'pickup', 'dropoff']);
     }
   };
 
@@ -466,19 +498,65 @@ export default function ContractVlookup() {
               <span>{getCompleteRecords()}</span>
             </div>
             
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              backgroundColor: yeloColors.warning,
-              color: yeloColors.white,
-              padding: "8px 12px",
-              borderRadius: "4px",
-              fontSize: "0.9em"
-            }}>
+            <div 
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                backgroundColor: showOnlyMissing ? "#F57C00" : yeloColors.warning,
+                color: yeloColors.white,
+                padding: "8px 12px",
+                borderRadius: "4px",
+                fontSize: "0.9em",
+                cursor: "pointer",
+                transition: "background-color 0.3s ease"
+              }}
+              onClick={() => setShowOnlyMissing(!showOnlyMissing)}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#F57C00"}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = showOnlyMissing ? "#F57C00" : yeloColors.warning}
+            >
               <span style={{ fontWeight: "bold" }}>Missing Data Records:</span>
               <span>{getMissingRecords()}</span>
+              <span style={{ marginLeft: "5px", fontSize: "0.8em" }}>({showOnlyMissing ? "Click to show all" : "Click to filter"})</span>
             </div>
+            
+            <div 
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                backgroundColor: showOnlyDifferences ? "#D32F2F" : "#FF5722",
+                color: yeloColors.white,
+                padding: "8px 12px",
+                borderRadius: "4px",
+                fontSize: "0.9em",
+                cursor: "pointer",
+                transition: "background-color 0.3s ease"
+              }}
+              onClick={() => setShowOnlyDifferences(!showOnlyDifferences)}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#D32F2F"}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = showOnlyDifferences ? "#D32F2F" : "#FF5722"}
+            >
+              <span style={{ fontWeight: "bold" }}>Different Plate Numbers:</span>
+              <span>{getDifferentPlatesRecords()}</span>
+              <span style={{ marginLeft: "5px", fontSize: "0.8em" }}>({showOnlyDifferences ? "Click to show all" : "Click to filter"})</span>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowOnlyDifferences(false);
+                setShowOnlyMissing(false);
+              }}
+              style={{
+                ...buttonStyle,
+                backgroundColor: yeloColors.secondary,
+                marginLeft: 0
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = yeloColors.darkPurple}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = yeloColors.secondary}
+            >
+              Show All Records
+            </button>
           </div>
         </div>
       )}
@@ -508,7 +586,7 @@ export default function ContractVlookup() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <input
                       type="checkbox"
-                      checked={selectedColumns.length === 5}
+                      checked={selectedColumns.length === 7}
                       onChange={toggleAllColumns}
                       style={{ marginRight: 5 }}
                     />
@@ -548,6 +626,28 @@ export default function ContractVlookup() {
                     <span>Model</span>
                   </div>
                 </th>
+                <th style={{ padding: "14px", borderBottom: `2px solid ${yeloColors.primary}`, cursor: "pointer" }} onClick={() => toggleColumnSelection("invygo")}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedColumns.includes("invygo")}
+                      onChange={() => toggleColumnSelection("invygo")}
+                      style={{ marginRight: 5 }}
+                    />
+                    <span>INVYGO</span>
+                  </div>
+                </th>
+                <th style={{ padding: "14px", borderBottom: `2px solid ${yeloColors.primary}`, cursor: "pointer" }} onClick={() => toggleColumnSelection("refModel")}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedColumns.includes("refModel")}
+                      onChange={() => toggleColumnSelection("refModel")}
+                      style={{ marginRight: 5 }}
+                    />
+                    <span>Model</span>
+                  </div>
+                </th>
                 <th style={{ padding: "14px", borderBottom: `2px solid ${yeloColors.primary}`, cursor: "pointer" }} onClick={() => toggleColumnSelection("pickup")}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <input
@@ -573,25 +673,64 @@ export default function ContractVlookup() {
               </tr>
             </thead>
             <tbody>
-              {results.map((r, i) => {
+              {results
+                .filter(record => {
+                  // فلتر الاختلافات
+                  if (showOnlyDifferences) {
+                    const plateNo = record.plate?.toString().trim().toLowerCase();
+                    const invygoPlate = record.invygo?.toString().trim().toLowerCase();
+                    return plateNo !== "❌" && invygoPlate !== "❌" && plateNo !== invygoPlate;
+                  }
+                  
+                  // فلتر البيانات الناقصة
+                  if (showOnlyMissing) {
+                    return record.plate === "❌" || 
+                           record.model === "❌" || 
+                           record.invygo === "❌" || 
+                           record.refModel === "❌" || 
+                           record.pickup === "❌" || 
+                           record.dropoff === "❌";
+                  }
+                  
+                  return true;
+                })
+                .map((r, i) => {
                 // Check if this record has missing data
                 const hasMissingData = r.plate === "❌" || r.model === "❌" || 
+                                      r.invygo === "❌" || r.refModel === "❌" ||
                                       r.pickup === "❌" || r.dropoff === "❌";
+                
+                // Check if plate numbers are different
+                const plateNo = r.plate?.toString().trim().toLowerCase();
+                const invygoPlate = r.invygo?.toString().trim().toLowerCase();
+                const hasDifferentPlates = plateNo !== "❌" && invygoPlate !== "❌" && plateNo !== invygoPlate;
+                
+                // Determine row color based on conditions
+                let rowColor;
+                if (hasDifferentPlates) {
+                  rowColor = "#ffebee"; // لون أحمر فاتح للاختلافات
+                } else if (hasMissingData) {
+                  rowColor = "#fff3e0"; // لون برتقالي فاتح للبيانات الناقصة
+                } else {
+                  rowColor = i % 2 === 0 ? yeloColors.white : yeloColors.offWhite;
+                }
                 
                 return (
                   <tr 
                     key={i} 
                     style={{ 
-                      backgroundColor: hasMissingData ? "#fff3e0" : (i % 2 === 0 ? yeloColors.white : yeloColors.offWhite),
+                      backgroundColor: rowColor,
                       transition: "background-color 0.2s"
                     }}
                     onMouseOver={(e) => e.currentTarget.style.backgroundColor = yeloColors.lightYellow}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = hasMissingData ? "#fff3e0" : (i % 2 === 0 ? yeloColors.white : yeloColors.offWhite)}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = rowColor}
                   >
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}` }}>{i + 1}</td>
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, fontWeight: "bold", color: yeloColors.secondary }}>{r.contract}</td>
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.plate === "❌" ? yeloColors.error : "inherit" }}>{r.plate}</td>
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.model === "❌" ? yeloColors.error : "inherit" }}>{r.model}</td>
+                    <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.invygo === "❌" ? yeloColors.error : "inherit" }}>{r.invygo}</td>
+                    <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.refModel === "❌" ? yeloColors.error : "inherit" }}>{r.refModel}</td>
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.pickup === "❌" ? yeloColors.error : "inherit" }}>{r.pickup}</td>
                     <td style={{ padding: "12px", borderBottom: `1px solid ${yeloColors.offWhite}`, color: r.dropoff === "❌" ? yeloColors.error : "inherit" }}>{r.dropoff}</td>
                   </tr>

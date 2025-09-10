@@ -35,8 +35,13 @@ export const fetchCarsDatabase = async (): Promise<Map<string, string>> => {
         const plateNumber = normalize(row[plateIndex]);
         
         if (plateNumber && (manufacturer || model || year)) {
-          const formatWord = (word: string) => {
-            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+          const formatWord = (text: string) => {
+            return text.split(' ').map(word => {
+              if (word.length <= 3) {
+                return word.toUpperCase(); // الكلمات القصيرة (رموز) تكون كلها كابيتال
+              }
+              return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            }).join(' ');
           };
           
           const formattedParts = [manufacturer, model, year]
