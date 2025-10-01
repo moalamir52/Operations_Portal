@@ -42,6 +42,8 @@ function KilometerTracker() {
   const [booking, setBooking] = useState('');
   const [contractData, setContractData] = useState<ContractRow | null>(null);
   const [data, setData] = useState<ContractRow[]>([]);
+  const [closedData, setClosedData] = useState<ContractRow[]>([]);
+  const [contractSource, setContractSource] = useState<string>('');
   const [error, setError] = useState('');
   const [inputError, setInputError] = useState('');
   const [toastMsg, setToastMsg] = useState('');
@@ -55,11 +57,20 @@ function KilometerTracker() {
   const outInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/1XwBko5v8zOdTdv-By8HK_DvZnYT2T12mBw_SIbCfMkE/export?format=csv&gid=769459790';
-    Papa.parse(csvUrl, {
+    // Load Open Contracts
+    const openCsvUrl = 'https://docs.google.com/spreadsheets/d/1XwBko5v8zOdTdv-By8HK_DvZnYT2T12mBw_SIbCfMkE/export?format=csv&gid=769459790';
+    Papa.parse(openCsvUrl, {
       download: true,
       header: true,
       complete: (results) => setData(results.data)
+    });
+    
+    // Load Closed Contracts
+    const closedCsvUrl = 'https://docs.google.com/spreadsheets/d/1XwBko5v8zOdTdv-By8HK_DvZnYT2T12mBw_SIbCfMkE/export?format=csv&gid=1830448171';
+    Papa.parse(closedCsvUrl, {
+      download: true,
+      header: true,
+      complete: (results) => setClosedData(results.data)
     });
   }, []);
 
@@ -67,17 +78,33 @@ function KilometerTracker() {
     if (booking.trim() === '') {
       setContractData(null);
       setError('');
+      setContractSource('');
       return;
     }
-    const match = data.find(row => row['Booking Number']?.toString().trim() === booking.trim());
+    
+    // Search in Open Contracts first
+    let match = data.find(row => row['Booking Number']?.toString().trim() === booking.trim());
     if (match) {
       setContractData(match);
+      setContractSource('Open Contract');
       setError('');
-    } else {
-      setContractData(null);
-      setError('❌ No data found for the entered number');
+      return;
     }
-  }, [booking, data]);
+    
+    // If not found, search in Closed Contracts
+    match = closedData.find(row => row['Booking Number']?.toString().trim() === booking.trim());
+    if (match) {
+      setContractData(match);
+      setContractSource('Closed Contract');
+      setError('');
+      return;
+    }
+    
+    // Not found in either
+    setContractData(null);
+    setContractSource('');
+    setError('❌ No data found for the entered number');
+  }, [booking, data, closedData]);
 
   useEffect(() => {
     if (contractData && contractData['Pick-up Date']) {
@@ -94,7 +121,15 @@ function KilometerTracker() {
       setDateLocked(false);
       setLastDate('');
     }
-  }, [contractData]);
+    
+    // Auto-fill end date for closed contracts
+    if (contractData && contractSource === 'Closed Contract' && contractData['Drop-Off Dte']) {
+      const dropOffDate = parseCustomDate(contractData['Drop-Off Dte']);
+      if (dropOffDate) {
+        setManualEndDate(dropOffDate);
+      }
+    }
+  }, [contractData, contractSource]);
 
   // استرجاع البيانات من LocalStorage عند تحميل الصفحة
   useEffect(() => {
@@ -172,7 +207,6 @@ function KilometerTracker() {
     setInputError('');
     if (outInputRef.current) outInputRef.current.focus();
     if (logs.length === 0) setEndDateInputVisible(false); // Hide after first entry
-    setManualEndDate('');
   };
 
   const totalUsedKm = logs.reduce((acc, log) => acc + (log.inVal - log.out), 0);
@@ -188,11 +222,19 @@ function KilometerTracker() {
     if (manualEndDate) {
       return new Date(manualEndDate);
     }
-    if (contractData && contractData['Close Date']) {
-      const closeDate = parseCustomDate(contractData['Close Date']);
-      if (closeDate) return new Date(closeDate);
+    if (contractData) {
+      // For closed contracts, use 'Drop-Off Dte'
+      if (contractSource === 'Closed Contract' && contractData['Drop-Off Dte']) {
+        const dropOffDate = parseCustomDate(contractData['Drop-Off Dte']);
+        if (dropOffDate) return new Date(dropOffDate);
+      }
+      // For open contracts, use 'Close Date'
+      if (contractData['Close Date']) {
+        const closeDate = parseCustomDate(contractData['Close Date']);
+        if (closeDate) return new Date(closeDate);
+      }
     }
-    return new Date();
+    return null;
   };
 
   const getDaysSinceFirst = () => {
@@ -200,6 +242,7 @@ function KilometerTracker() {
     if (!firstDate) return 0;
     const start = new Date(firstDate);
     const end = getContractEndDate();
+    if (!end) return 0;
     return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
 
@@ -532,10 +575,16 @@ function KilometerTracker() {
             <span style={{ fontSize: 20, marginRight: 6, color: '#b39ddb' }}>📄</span>
             Contract: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Contract No.']}</span>
           </p>
-          <p style={{ margin: 0, fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+          <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
             <span style={{ fontSize: 20, marginRight: 6, color: '#6a1b9a' }}>👤</span>
             Customer: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Customer']}</span>
           </p>
+          {contractSource && (
+            <p style={{ margin: 0, fontWeight: 700, color: contractSource === 'Open Contract' ? '#4CAF50' : '#ff9800', fontSize: 16, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 18, marginRight: 6 }}>{contractSource === 'Open Contract' ? '🟢' : '🟠'}</span>
+              {contractSource}
+            </p>
+          )}
         </div>
       )}
 
@@ -711,6 +760,23 @@ function KilometerTracker() {
             Contract Start Date: {formatDateToDMY(lastDate)}
           </div>
         )}
+        
+        {/* تاريخ الإغلاق إذا كان موجود */}
+        {manualEndDate && (
+          <div style={{
+            background: '#ffebee',
+            color: '#b71c1c',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            borderRadius: '8px',
+            padding: '12px 20px',
+            margin: '0 0 18px 0',
+            letterSpacing: '1px',
+            boxShadow: '0 1px 4px rgba(183,28,28,0.07)'
+          }}>
+            Contract End Date: {formatDateToDMY(manualEndDate)}
+          </div>
+        )}
 
         {logs.length > 0 && (
           <>
@@ -744,10 +810,16 @@ function KilometerTracker() {
                   <span style={{ fontSize: 20, marginRight: 6, color: '#b39ddb' }}>📄</span>
                   Contract: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Contract No.']}</span>
                 </p>
-                <p style={{ margin: 0, fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                <p style={{ margin: '0 0 8px 0', fontWeight: 700, color: '#6a1b9a', fontSize: 18, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
                   <span style={{ fontSize: 20, marginRight: 6, color: '#6a1b9a' }}>👤</span>
                   Customer: <span style={{ fontWeight: 400, color: '#222', marginLeft: 6 }}>{contractData['Customer']}</span>
                 </p>
+                {contractSource && (
+                  <p style={{ margin: 0, fontWeight: 700, color: contractSource === 'Open Contract' ? '#4CAF50' : '#ff9800', fontSize: 16, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 18, marginRight: 6 }}>{contractSource === 'Open Contract' ? '🟢' : '🟠'}</span>
+                    {contractSource}
+                  </p>
+                )}
               </div>
             )}
             {/* احذف عرض تاريخ البداية هنا */}
