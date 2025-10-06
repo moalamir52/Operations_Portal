@@ -15,13 +15,24 @@ interface ContractRow {
   [key: string]: any;
 }
 
-// Parse date in format DD/MM/YYYY HH:mm to YYYY-MM-DD
+// Parse date in multiple formats to YYYY-MM-DD
 function parseCustomDate(dateStr: string): string | null {
-  const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!dateStr) return null;
+  
+  // Format: DD/MM/YYYY HH:mm
+  let match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (match) {
     const [_, day, month, year] = match;
     return `${year}-${month}-${day}`;
   }
+  
+  // Format: DD-MM-YYYY (with optional time)
+  match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (match) {
+    const [_, day, month, year] = match;
+    return `${year}-${month}-${day}`;
+  }
+  
   return null;
 }
 
@@ -107,27 +118,46 @@ function KilometerTracker() {
   }, [booking, data, closedData]);
 
   useEffect(() => {
-    if (contractData && contractData['Pick-up Date']) {
-      const rawDate = contractData['Pick-up Date'];
-      let formattedDate = parseCustomDate(rawDate);
-      if (formattedDate) {
-        setLastDate(formattedDate);
-        setDateLocked(true);
+    if (contractData) {
+      // قراءة تاريخ بداية العقد من Pick-up Date
+      if (contractData['Pick-up Date']) {
+        const rawDate = contractData['Pick-up Date'];
+        let formattedDate = parseCustomDate(rawDate);
+        if (formattedDate) {
+          setLastDate(formattedDate);
+          setDateLocked(true);
+        }
       } else {
-        setDateLocked(false);
+        // إذا لم يوجد تاريخ بداية، امسح القيمة
         setLastDate('');
+        setDateLocked(false);
+      }
+      
+      // للعقود المفتوحة: إذا لم يكن هناك تاريخ نهاية، ضع تاريخ اليوم
+      if (contractSource === 'Open Contract') {
+        if (!contractData['Close Date'] || contractData['Close Date'].trim() === '') {
+          const today = new Date().toISOString().split('T')[0];
+          setManualEndDate(today);
+        } else {
+          const closeDate = parseCustomDate(contractData['Close Date']);
+          if (closeDate) {
+            setManualEndDate(closeDate);
+          }
+        }
+      }
+      
+      // للعقود المغلقة: استخدم تاريخ الإرجاع
+      if (contractSource === 'Closed Contract' && contractData['Drop-Off Dte']) {
+        const dropOffDate = parseCustomDate(contractData['Drop-Off Dte']);
+        if (dropOffDate) {
+          setManualEndDate(dropOffDate);
+        }
       }
     } else {
+      // إذا لم توجد بيانات عقد، امسح كل شيء
       setDateLocked(false);
       setLastDate('');
-    }
-    
-    // Auto-fill end date for closed contracts
-    if (contractData && contractSource === 'Closed Contract' && contractData['Drop-Off Dte']) {
-      const dropOffDate = parseCustomDate(contractData['Drop-Off Dte']);
-      if (dropOffDate) {
-        setManualEndDate(dropOffDate);
-      }
+      setManualEndDate('');
     }
   }, [contractData, contractSource]);
 
@@ -170,15 +200,15 @@ function KilometerTracker() {
 
   // عند تغيير رقم البوكينج، امسح السجلات والحقول
   useEffect(() => {
-    setLogs([]);
-    setOut('');
-    setInVal('');
-    setDate('');
-    setLastDate('');
-    setDateLocked(false);
-    setManualEndDate('');
-    setEndDateInputVisible(true); // Reset visibility on booking change
-    localStorage.removeItem('km-tracker-data');
+    if (booking.trim() !== '') {
+      setLogs([]);
+      setOut('');
+      setInVal('');
+      setDate('');
+      // لا تمسح lastDate و dateLocked هنا - دعها للـ useEffect الخاص بـ contractData
+      setEndDateInputVisible(true);
+      localStorage.removeItem('km-tracker-data');
+    }
   }, [booking]);
 
   const handleAddLog = () => {
@@ -408,6 +438,140 @@ function KilometerTracker() {
       link.click();
       // showToast('Image exported successfully!'); // تم إلغاء الرسالة
     });
+  }
+
+  // دالة إنشاء الفاتورة الضريبية كملف Word
+  function generateTaxInvoice() {
+    if (!contractData || exceeded <= 0) {
+      showToast('No excess kilometers to invoice!');
+      return;
+    }
+
+    // حساب التكلفة
+    const pricePerKm = 1.0;
+    const baseAmount = exceeded * pricePerKm;
+    const vatAmount = baseAmount * 0.05;
+    const totalAmount = baseAmount + vatAmount;
+
+    // بيانات الفاتورة
+    const today = new Date();
+    const invoiceDate = today.toLocaleDateString('en-GB');
+    const refNumber = `ALWFQ-`;
+    const customerName = contractData['Customer'] || 'Customer';
+    const bookingId = contractData['Booking Number'] || '';
+    const contractNo = (contractData['Contract No.'] || '').split('-')[0] || '';
+    const vehicle = contractData['Vehicle'] || 'Vehicle';
+    const startDate = lastDate ? formatDateToDMY(lastDate) : '';
+    const endDate = manualEndDate ? formatDateToDMY(manualEndDate) : '';
+    // إنشاء قائمة بكل الرحلات
+    const tripDetails = logs.map((log, index) => 
+      `Delivered Kilometer: ${log.out} KM\nCollected Kilometer: ${log.inVal} KM`
+    ).join('\n\n');
+
+    // إنشاء محتوى HTML للفاتورة
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Tax Invoice</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 5px; font-size: 14px; }
+        .header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        .date-ref { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; }
+        .company-info { margin-bottom: 20px; font-size: 14px; }
+        .subject { font-weight: bold; text-decoration: underline; margin: 20px 0; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; word-wrap: break-word; }
+        th { background-color: #f0f0f0; font-weight: bold; }
+        .description { text-align: left; font-size: 12px; width: 50%; }
+        .main-table th:nth-child(1) { width: 8%; }
+        .main-table th:nth-child(2) { width: 50%; }
+        .main-table th:nth-child(3) { width: 14%; }
+        .main-table th:nth-child(4) { width: 14%; }
+        .main-table th:nth-child(5) { width: 14%; }
+        .total-row { font-weight: bold; }
+        .conditions { margin-top: 20px; font-size: 14px; }
+        .signature { margin-top: 30px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">Tax Invoice</div>
+    
+    <table style="width: 100%; margin-bottom: 2px; border: none;">
+        <tr>
+            <td style="text-align: left; border: none;">${invoiceDate}</td>
+            <td style="text-align: right; border: none;">Ref: ${refNumber}</td>
+        </tr>
+    </table>
+    
+    <div style="text-align: right; margin-bottom: 20px;">TRN#: 100397403500003</div>
+    
+    <div class="company-info">
+        <div>Invygo Tech FZ-LLC</div>
+        <div>Dubai Internet City</div>
+        <div>Dubai, U.A.E.</div>
+    </div>
+    
+    <div class="subject">SUB: Micro Lease Cars</div>
+    
+    <p>Dear Sir,</p>
+    
+    <p>We thank you for your business renting the below vehicle;</p>
+    
+    <table class="main-table">
+        <tr>
+            <th>No.</th>
+            <th>Description</th>
+            <th>Exceed KM Amount</th>
+            <th>VAT 5%</th>
+            <th>Total Price</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td class="description">
+                ${customerName}<br>
+                Booking ID: ${bookingId}<br>
+                R/A: ${contractNo}<br>
+                Vehicle: ${vehicle}<br>
+                Start Date: ${startDate} - ${endDate}<br><br>
+                ${tripDetails}<br><br>
+                Total Used Kilometer = ${totalUsedKm} KM<br>
+                Total Allowed Kilometer = ${allowedKm} KM<br>
+                Exceeded KM: ${totalUsedKm - allowedKm} KM
+            </td>
+            <td>${exceeded.toLocaleString()}</td>
+            <td>${vatAmount.toFixed(2)}</td>
+            <td>${totalAmount.toFixed(2)}</td>
+        </tr>
+        <tr class="total-row">
+    <td colspan="3" style="border: none;"></td>
+    <td style="text-align: right; background-color: #bfbfbf;">TOTAL:</td>
+    <td style="background-color: #bfbfbf;">AED ${totalAmount.toFixed(2)}</td>
+</tr>
+    </table>
+    
+    <div class="conditions">
+        <div style="font-weight: bold; text-decoration: underline;">General Conditions:</div>
+        <br>
+        <div>Terms of Payment: within 7 days</div>
+    </div>
+    
+    <div class="signature">
+        <p>Thanking you and assuring you of our best co-operation and services at all times.</p>
+        <br>
+        <p>Best Regards,</p>
+        <br><br>
+        <p><strong>Saudian Alwefaq Rent A Car</strong></p>
+    </div>
+</body>
+</html>`;
+
+    // إنشاء وتحميل الملف
+    const blob = new Blob([htmlContent], { type: 'application/msword' });
+    const fileName = `Tax-Invoice-${contractData['Booking Number'] || 'Unknown'}.doc`;
+    saveAs(blob, fileName);
+    showToast('Tax Invoice generated successfully!');
   }
 
   const handleReset = () => {
@@ -740,6 +904,18 @@ function KilometerTracker() {
         >
           Export as Image
         </button>
+        {exceeded > 0 && contractData && (
+          <button
+            style={{
+              ...buttonStyle,
+              background: '#d32f2f',
+              color: '#fff',
+            }}
+            onClick={generateTaxInvoice}
+          >
+            📄 Generate Tax Invoice
+          </button>
+        )}
       </div>
 
       {/* النتائج فقط داخل export-section */}
