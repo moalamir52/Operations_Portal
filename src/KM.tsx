@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
 
 interface LogEntry {
   date: string;
@@ -64,6 +65,9 @@ function KilometerTracker() {
   };
   const [manualEndDate, setManualEndDate] = useState<string>('');
   const [endDateInputVisible, setEndDateInputVisible] = useState(true);
+  const [showRefModal, setShowRefModal] = useState(false);
+  const [refInput, setRefInput] = useState('');
+  const [exportType, setExportType] = useState('both');
 
   const outInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -453,14 +457,27 @@ function KilometerTracker() {
     const vatAmount = baseAmount * 0.05;
     const totalAmount = baseAmount + vatAmount;
 
+    // عرض النافذة المنبثقة
+    setShowRefModal(true);
+  }
+
+  const handleRefSubmit = () => {
+    // حساب التكلفة
+    const pricePerKm = 1.0;
+    const baseAmount = exceeded * pricePerKm;
+    const vatAmount = baseAmount * 0.05;
+    const totalAmount = baseAmount + vatAmount;
+
     // بيانات الفاتورة
     const today = new Date();
     const invoiceDate = today.toLocaleDateString('en-GB');
-    const refNumber = `ALWFQ-`;
+    const refNumber = refInput ? `ALWFQ-${refInput}` : 'ALWFQ-';
     const customerName = contractData['Customer'] || 'Customer';
     const bookingId = contractData['Booking Number'] || '';
     const contractNo = (contractData['Contract No.'] || '').split('-')[0] || '';
-    const vehicle = contractData['Vehicle'] || 'Vehicle';
+    const model = contractData['Car Model'] || contractData['Model'] || '';
+    const plateNo = contractData['Plate Number'] || contractData['Plate No.'] || '';
+    const vehicle = model && plateNo ? `${model} - ${plateNo}` : (model || plateNo || 'Vehicle');
     const startDate = lastDate ? formatDateToDMY(lastDate) : '';
     const endDate = manualEndDate ? formatDateToDMY(manualEndDate) : '';
     // إنشاء قائمة بكل الرحلات
@@ -476,36 +493,36 @@ function KilometerTracker() {
     <meta charset="UTF-8">
     <title>Tax Invoice</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 5px; font-size: 14px; }
-        .header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-        .date-ref { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; }
-        .company-info { margin-bottom: 20px; font-size: 14px; }
-        .subject { font-weight: bold; text-decoration: underline; margin: 20px 0; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; table-layout: fixed; }
-        th, td { border: 1px solid black; padding: 10px; text-align: center; word-wrap: break-word; }
-        th { background-color: #f0f0f0; font-weight: bold; }
-        .description { text-align: left; font-size: 12px; width: 50%; }
-        .main-table th:nth-child(1) { width: 8%; }
-        .main-table th:nth-child(2) { width: 50%; }
+        body { font-family: Arial, sans-serif; margin: 2px; font-size: 14px; line-height: 1.2; }
+        .header { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+        .date-ref { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
+        .company-info { margin-bottom: 10px; font-size: 14px; line-height: 1.1; }
+        .subject { font-weight: bold; text-decoration: underline; margin: 8px 0; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
+        th, td { border: 1px solid black; padding: 4px; text-align: center; word-wrap: break-word; vertical-align: top; }
+        th { background-color: #f0f0f0; font-weight: bold; height: 25px; }
+        .description { text-align: left; font-size: 11px; width: 50%; padding: 4px; line-height: 1.1; }
+        .main-table th:nth-child(1) { width: 6%; }
+        .main-table th:nth-child(2) { width: 52%; }
         .main-table th:nth-child(3) { width: 14%; }
         .main-table th:nth-child(4) { width: 14%; }
         .main-table th:nth-child(5) { width: 14%; }
         .total-row { font-weight: bold; }
-        .conditions { margin-top: 20px; font-size: 14px; }
-        .signature { margin-top: 30px; font-size: 14px; }
+        .conditions { margin-top: 10px; font-size: 14px; }
+        .signature { margin-top: 15px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="header">Tax Invoice</div>
     
-    <table style="width: 100%; margin-bottom: 2px; border: none;">
+    <table style="width: 100%; margin-bottom: 1px; border: none;">
         <tr>
-            <td style="text-align: left; border: none;">${invoiceDate}</td>
-            <td style="text-align: right; border: none;">Ref: ${refNumber}</td>
+            <td style="text-align: left; border: none; padding: 2px;">${invoiceDate}</td>
+            <td style="text-align: right; border: none; padding: 2px;">Ref: ${refNumber}</td>
         </tr>
     </table>
     
-    <div style="text-align: right; margin-bottom: 20px;">TRN#: 100397403500003</div>
+    <div style="text-align: right; margin-bottom: 8px; font-size: 13px;">TRN#: 100397403500003</div>
     
     <div class="company-info">
         <div>Invygo Tech FZ-LLC</div>
@@ -515,9 +532,9 @@ function KilometerTracker() {
     
     <div class="subject">SUB: Micro Lease Cars</div>
     
-    <p>Dear Sir,</p>
+    <p style="margin: 5px 0;">Dear Sir,</p>
     
-    <p>We thank you for your business renting the below vehicle;</p>
+    <p style="margin: 5px 0;">We thank you for your business renting the below vehicle;</p>
     
     <table class="main-table">
         <tr>
@@ -534,8 +551,8 @@ function KilometerTracker() {
                 Booking ID: ${bookingId}<br>
                 R/A: ${contractNo}<br>
                 Vehicle: ${vehicle}<br>
-                Start Date: ${startDate} - ${endDate}<br><br>
-                ${tripDetails}<br><br>
+                Start Date: ${startDate} - ${endDate}<br>
+                ${tripDetails}<br>
                 Total Used Kilometer = ${totalUsedKm} KM<br>
                 Total Allowed Kilometer = ${allowedKm} KM<br>
                 Exceeded KM: ${totalUsedKm - allowedKm} KM
@@ -567,12 +584,114 @@ function KilometerTracker() {
 </body>
 </html>`;
 
-    // إنشاء وتحميل الملف
-    const blob = new Blob([htmlContent], { type: 'application/msword' });
-    const fileName = `Tax-Invoice-${contractData['Booking Number'] || 'Unknown'}.doc`;
-    saveAs(blob, fileName);
+    // تصدير حسب الاختيار
+    if (exportType === 'word' || exportType === 'both') {
+      const blob = new Blob([htmlContent], { type: 'application/msword' });
+      const fileName = `Tax-Invoice-${contractData['Booking Number'] || 'Unknown'}.doc`;
+      saveAs(blob, fileName);
+    }
+    
+    if (exportType === 'pdf' || exportType === 'both') {
+      generatePDFWithBackground(htmlContent, customerName, bookingId);
+    }
+    
     showToast('Tax Invoice generated successfully!');
-  }
+    
+    // إغلاق النافذة ومسح المدخل
+    setShowRefModal(false);
+    setRefInput('');
+  };
+
+  // Helper function to fetch image and convert to data URL
+  const toDataURL = (url: string): Promise<string> => fetch(url)
+    .then(response => response.blob())
+    .then(blob => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    }));
+
+  // دالة إنشاء PDF مع خلفية Letterhead
+  const generatePDFWithBackground = async (htmlContent: string, customerName: string, bookingId: string) => {
+    try {
+      // 1. Fetch the background image and convert to Base64
+      const letterheadDataUrl = await toDataURL(process.env.PUBLIC_URL + '/Letterhead.jpg');
+      
+      // 2. Create the HTML structure with the embedded image
+      const htmlWithBg = `
+      <div style="
+        width: 210mm;
+        height: 297mm;
+        position: relative;
+        margin: 0;
+        padding: 0;
+        background-color: white; /* Ensure a white background */
+      ">
+        <img src="${letterheadDataUrl}" style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 210mm;
+          height: 297mm;
+          z-index: 1;
+        " />
+        <div style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 2;
+          padding: 120px 30px 20px 30px;
+          box-sizing: border-box;
+        ">
+          ${htmlContent.replace(/<\/?html>|<\/?body>/g, '')}
+        </div>
+      </div>`;
+      
+      // 3. Create a temporary element to render the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlWithBg;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      tempDiv.style.height = '297mm';
+      
+      document.body.appendChild(tempDiv);
+      
+      // 4. Use html2canvas to capture the element
+      // Use a small timeout to ensure the image is rendered
+      setTimeout(() => {
+        html2canvas(tempDiv, {
+          scale: 2, // Higher scale for better quality
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null, // Use transparent background for canvas
+        }).then(canvas => {
+          // 5. Generate PDF
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 210;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+          pdf.save(`Tax-Invoice-${bookingId || 'Unknown'}.pdf`);
+          
+          // 6. Cleanup
+          document.body.removeChild(tempDiv);
+        }).catch(error => {
+          console.error('PDF generation error:', error);
+          document.body.removeChild(tempDiv);
+        });
+      }, 500); // A short delay can help ensure images are loaded
+
+    } catch (error) {
+      console.error('Failed to load background image for PDF:', error);
+    }
+  };
+  
 
   const handleReset = () => {
     setLogs([]);
@@ -1120,6 +1239,124 @@ function KilometerTracker() {
           boxShadow: '0 2px 12px rgba(0,0,0,0.15)'
         }}>
           {toastMsg}
+        </div>
+      )}
+
+      {/* نافذة منبثقة لرقم المرجع */}
+      {showRefModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: '#fff',
+            padding: '30px',
+            borderRadius: '12px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#6a1b9a', textAlign: 'center' }}>Generate Tax Invoice</h3>
+            <input
+              type="text"
+              placeholder="Reference number (optional - will be added after ALWFQ-)"
+              value={refInput}
+              onChange={e => setRefInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #ffe066',
+                borderRadius: '8px',
+                fontSize: '16px',
+                marginBottom: '15px',
+                boxSizing: 'border-box'
+              }}
+              autoFocus
+            />
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ margin: '0 0 10px 0', color: '#666', fontWeight: 'bold' }}>Export Format:</p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="exportType"
+                    value="word"
+                    checked={exportType === 'word'}
+                    onChange={e => setExportType(e.target.value)}
+                    style={{ marginRight: '5px' }}
+                  />
+                  Word Only
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="exportType"
+                    value="pdf"
+                    checked={exportType === 'pdf'}
+                    onChange={e => setExportType(e.target.value)}
+                    style={{ marginRight: '5px' }}
+                  />
+                  PDF Only
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="exportType"
+                    value="both"
+                    checked={exportType === 'both'}
+                    onChange={e => setExportType(e.target.value)}
+                    style={{ marginRight: '5px' }}
+                  />
+                  Both
+                </label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowRefModal(false);
+                  setRefInput('');
+                  handleRefSubmit();
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: '#4CAF50',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px'
+                }}
+              >
+                Generate Invoice
+              </button>
+              <button
+                onClick={() => {
+                  setShowRefModal(false);
+                  setRefInput('');
+                }}
+                style={{
+                  padding: '10px 20px',
+                  background: '#e53935',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
