@@ -482,8 +482,8 @@ function KilometerTracker() {
     const endDate = manualEndDate ? formatDateToDMY(manualEndDate) : '';
     // إنشاء قائمة بكل الرحلات
     const tripDetails = logs.map((log, index) => 
-      `Delivered Kilometer: ${log.out} KM\nCollected Kilometer: ${log.inVal} KM`
-    ).join('\n\n');
+      `Delivered Kilometer: ${log.out} KM &nbsp; | &nbsp; Collected Kilometer: ${log.inVal} KM`
+    ).join('<br>');
 
     // إنشاء محتوى HTML للفاتورة
     const htmlContent = `
@@ -692,6 +692,7 @@ function KilometerTracker() {
     }
   };
   
+
 
   const handleReset = () => {
     setLogs([]);
