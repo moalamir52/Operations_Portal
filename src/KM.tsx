@@ -612,86 +612,75 @@ function KilometerTracker() {
       reader.readAsDataURL(blob);
     }));
 
-  // دالة إنشاء PDF مع خلفية Letterhead
-  const generatePDFWithBackground = async (htmlContent: string, customerName: string, bookingId: string) => {
-    try {
-      // 1. Fetch the background image and convert to Base64
-      const letterheadDataUrl = await toDataURL(process.env.PUBLIC_URL + '/Letterhead.jpg');
-      
-      // 2. Create the HTML structure with the embedded image
-      const htmlWithBg = `
-      <div style="
-        width: 210mm;
-        height: 297mm;
-        position: relative;
-        margin: 0;
-        padding: 0;
-        background-color: white; /* Ensure a white background */
-      ">
-        <img src="${letterheadDataUrl}" style="
-          position: absolute;
-          top: 0;
-          left: 0;
+    const generatePDFWithBackground = async (htmlContent: string, customerName: string, bookingId: string) => {
+      try {
+        // 1. Create the HTML structure with the embedded image
+        const letterheadDataUrl = await toDataURL(process.env.PUBLIC_URL + '/Letterhead.jpg');
+        const htmlWithBg = `
+        <div style="
           width: 210mm;
           height: 297mm;
-          z-index: 1;
-        " />
-        <div style="
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 2;
-          padding: 120px 30px 20px 30px;
-          box-sizing: border-box;
+          position: relative;
+          margin: 0;
+          padding: 0;
+          background-color: white;
         ">
-          ${htmlContent.replace(/<\/?html>|<\/?body>/g, '')}
-        </div>
-      </div>`;
-      
-      // 3. Create a temporary element to render the HTML
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlWithBg;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '0';
-      tempDiv.style.width = '210mm';
-      tempDiv.style.height = '297mm';
-      
-      document.body.appendChild(tempDiv);
-      
-      // 4. Use html2canvas to capture the element
-      // Use a small timeout to ensure the image is rendered
-      setTimeout(() => {
-        html2canvas(tempDiv, {
-          scale: 2, // Higher scale for better quality
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null, // Use transparent background for canvas
-        }).then(canvas => {
-          // 5. Generate PDF
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          const imgData = canvas.toDataURL('image/png');
-          const imgWidth = 210;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          
-          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-          pdf.save(`Tax-Invoice-${bookingId || 'Unknown'}.pdf`);
-          
-          // 6. Cleanup
-          document.body.removeChild(tempDiv);
-        }).catch(error => {
-          console.error('PDF generation error:', error);
-          document.body.removeChild(tempDiv);
-        });
-      }, 500); // A short delay can help ensure images are loaded
-
-    } catch (error) {
-      console.error('Failed to load background image for PDF:', error);
-    }
-  };
-  
+          <img src="${letterheadDataUrl}" style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            height: 297mm;
+            z-index: 1;
+          " />
+          <div style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2;
+            padding: 120px 30px 20px 30px;
+            box-sizing: border-box;
+          ">
+            ${htmlContent.replace(/<\/?html>|<\/?body>/g, '')}
+          </div>
+        </div>`;
+        
+        // 2. Create a temporary element to render the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlWithBg;
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '0';
+        tempDiv.style.width = '210mm';
+        tempDiv.style.height = '297mm';
+        
+        document.body.appendChild(tempDiv);
+        
+        // 3. Use html2canvas to capture the element
+        setTimeout(async () => {
+          try {
+            const canvas = await html2canvas(tempDiv, { scale: 2 });
+            const imgData = canvas.toDataURL('image/jpeg', 0.7);
+    
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const width = pdf.internal.pageSize.getWidth();
+            const height = pdf.internal.pageSize.getHeight();
+            pdf.addImage(imgData, 'JPEG', 0, 0, width, height);
+            pdf.save(`Tax-Invoice-${bookingId || 'Unknown'}.pdf`);
+          } catch(e) {
+            console.error(e);
+          } finally {
+            document.body.removeChild(tempDiv);
+          }
+        }, 500);
+    
+      } catch (error) {
+        console.error('Failed to generate PDF:', error);
+      }
+    };
+    
 
 
   const handleReset = () => {
