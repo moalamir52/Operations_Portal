@@ -451,14 +451,37 @@ function KilometerTracker() {
       return;
     }
 
-    // حساب التكلفة
+    // عرض النافذة المنبثقة
+    setShowRefModal(true);
+  }
+
+  const exportDetailsToCsv = () => {
+    if (!contractData || exceeded <= 0) {
+      showToast('No data to export.');
+      return;
+    }
     const pricePerKm = 1.0;
     const baseAmount = exceeded * pricePerKm;
     const vatAmount = baseAmount * 0.05;
     const totalAmount = baseAmount + vatAmount;
+    const now = new Date();
 
-    // عرض النافذة المنبثقة
-    setShowRefModal(true);
+    const detailsForCsv = {
+      'Date': now.toLocaleDateString('en-GB'),
+      'Time': now.toTimeString().slice(0, 5),
+      'Plate_Number': contractData['Plate Number'] || contractData['Plate No.'] || '',
+      'Exceeded_Mileage': exceeded,
+      'Amount': totalAmount.toFixed(2),
+      'Dealer_Booking_Number': contractData['Booking Number'] || '',
+      'Tax_Invoice_No': refInput ? `ALWFQ-${refInput}` : 'ALWFQ-',
+    };
+
+    const csvData = [detailsForCsv];
+    const csvString = Papa.unparse(csvData);
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `Exceeded-Mileage-Details-${detailsForCsv.Dealer_Booking_Number || 'Unknown'}.csv`;
+    saveAs(blob, fileName);
+    showToast('CSV file downloaded!');
   }
 
   const handleRefSubmit = () => {
@@ -596,10 +619,6 @@ function KilometerTracker() {
     }
     
     showToast('Tax Invoice generated successfully!');
-    
-    // إغلاق النافذة ومسح المدخل
-    setShowRefModal(false);
-    setRefInput('');
   };
 
   // Helper function to fetch image and convert to data URL
@@ -1234,26 +1253,32 @@ function KilometerTracker() {
 
       {/* نافذة منبثقة لرقم المرجع */}
       {showRefModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000
-        }}>
-          <div style={{
-            background: '#fff',
-            padding: '30px',
-            borderRadius: '12px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            maxWidth: '400px',
-            width: '90%'
-          }}>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000
+          }}
+          onClick={() => { setShowRefModal(false); setRefInput(''); }}
+        >
+          <div 
+            style={{
+              background: '#fff',
+              padding: '30px',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              maxWidth: '400px',
+              width: '90%'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 style={{ margin: '0 0 20px 0', color: '#6a1b9a', textAlign: 'center' }}>Generate Tax Invoice</h3>
             <input
               type="text"
@@ -1311,11 +1336,7 @@ function KilometerTracker() {
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button
-                onClick={() => {
-                  setShowRefModal(false);
-                  setRefInput('');
-                  handleRefSubmit();
-                }}
+                onClick={handleRefSubmit}
                 style={{
                   padding: '10px 20px',
                   background: '#4CAF50',
@@ -1327,6 +1348,20 @@ function KilometerTracker() {
                 }}
               >
                 Generate Invoice
+              </button>
+              <button
+                onClick={exportDetailsToCsv}
+                style={{
+                  padding: '10px 20px',
+                  background: '#0288d1',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px'
+                }}
+              >
+                Download CSV
               </button>
               <button
                 onClick={() => {
