@@ -5,6 +5,7 @@ import Fleet from "./Fleet.tsx";
 import KilometerTracker from './KM.tsx';
 import ExcelToWord from './Salik.tsx';
 import Parking from './Parking.tsx';
+import TrafficFines from './Traffic.tsx';
 
 function ReminderDue14Days() {
   const [dueContracts, setDueContracts] = useState([]);
@@ -480,6 +481,14 @@ function App() {
           >
             🅿️ Parking
           </button>
+          <button
+            style={buttonStyle}
+            onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
+            onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
+            onClick={() => setView("traffic")}
+          >
+            🚦 Traffic Fines
+          </button>
         </>
       )}
 
@@ -588,6 +597,24 @@ function App() {
             color: "#4a148c",
           }}>⬅ Back</button>
           <Parking />
+        </>
+      )}
+
+      {view === "traffic" && (
+        <>
+          <button onClick={() => setView("home")} style={{
+            padding: "15px 30px",
+            margin: "15px",
+            fontSize: "16px",
+            fontWeight: "bold",
+            borderRadius: "10px",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: "#ffd54f",
+            borderBottom: "4px solid #6a1b9a",
+            color: "#4a148c",
+          }}>⬅ Back</button>
+          <TrafficFines />
         </>
       )}
 
