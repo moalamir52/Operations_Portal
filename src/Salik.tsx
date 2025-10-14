@@ -17,6 +17,7 @@ const downloadExcelTemplate = () => {
       'End Date',
       'Salik Trips',
       'Total Price',
+      'Invoice_Date',
     ],
   ];
   const worksheet = XLSX.utils.aoa_to_sheet(headers);
@@ -47,12 +48,20 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
       const date = new Date((excelDate - 25569) * 86400 * 1000);
       return date.toLocaleDateString('en-GB'); // Format: DD/MM/YYYY
     }
-    // If the date is already a string
+    // If the date is already a string, return as is
     if (typeof excelDate === 'string') {
+      // Try to parse as date and format, if fails return original string
+      const parsedDate = new Date(excelDate);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleDateString('en-GB');
+      }
       return excelDate;
     }
     return '';
   };
+
+  // Use Invoice_Date from Excel if available, otherwise use the passed invoiceDate
+  const finalInvoiceDate = row['Invoice_Date'] ? formatExcelDate(row['Invoice_Date']) : invoiceDate;
 
   // Determine the Salik Date text based on whether an end date exists
   let salikDateText = '';
@@ -83,7 +92,7 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
         new Paragraph({
           children: [
-            new TextRun({ text: `Date: ${invoiceDate}`, ...fontProps }),
+            new TextRun({ text: `Date: ${finalInvoiceDate}`, ...fontProps }),
             new TextRun({ text: '                                                                                ', ...fontProps }),
             new TextRun({ text: `Ref: ${invoiceNumber ? ' ' + invoiceNumber : ''}`, ...fontProps }),
           ],
