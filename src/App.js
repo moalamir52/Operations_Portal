@@ -122,7 +122,7 @@ function ReminderDue14Days() {
         await navigator.clipboard.write([clipboardItem]);
         
         const header = `Dear Team,%0D%0A%0D%0AThe following contracts were opened 13 days ago. Kindly review them, ensure all dues are settled, and update the status accordingly..%0D%0A%0D%0A(Note: If you find any cash deposit, please ignore it.)%0D%0A%0D%0A`;
-        const footer = `%0D%0A%0D%0ABest regards,%0D%0ABusiness Bay Team`;
+        const footer = `%0D%0A%0D%0ABest regards,`;
 
         let to = "";
         let cc = "a.naseer@iyelo.com";

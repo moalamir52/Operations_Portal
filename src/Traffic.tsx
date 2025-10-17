@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver';
 
 // Function to download CSV template with required columns for traffic fines
 const downloadCSVTemplate = () => {
-  const headers = 'TFINE No.,Plate_Number,Date,Time,Amount,Description,Dealer_Booking_Number,Booking_ID,Invoice_Date,Tax_Invoice_No';
+  const headers = 'TFINE No.,Plate_Number,Date,Time,Amount,Description,Dealer_Booking_Number,Booking_ID,Invoice_Date,Tax_Invoice_No,Customer';
   const blob = new Blob([headers], { type: 'text/csv' });
   saveAs(blob, 'Traffic-Fines-Template.csv');
 };
@@ -137,7 +137,7 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                 }),
                 new TableCell({
                   children: [
-                    new Paragraph({ children: [new TextRun({ text: `Karine Wissam Ezzeddine`, ...fontProps, bold: true })] }),
+                    new Paragraph({ children: [new TextRun({ text: `${row['Customer'] || row['Customer_Name'] || 'N/A'}`, ...fontProps, bold: true })] }),
                     new Paragraph({ children: [new TextRun({ text: `Traffic Fine No: ${row['TFINE No.'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: `Date: ${formattedDate}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: `Time: ${row['Time'] || ''}`, ...fontProps })] }),
@@ -217,7 +217,6 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
         }),
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
-        new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: 'Thanking you and assuring you of our best co-operation and services at all times.', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
@@ -262,9 +261,9 @@ function TrafficFines() {
     }
 
     // Convert data back to CSV format
-    const headers = 'TFINE No.,Plate_Number,Date,Time,Amount,Description,Dealer_Booking_Number,Booking_ID,Invoice_Date,Tax_Invoice_No';
+    const headers = 'TFINE No.,Plate_Number,Date,Time,Amount,Description,Dealer_Booking_Number,Booking_ID,Invoice_Date,Tax_Invoice_No,Customer';
     const csvRows = uploadedData.map(row => 
-      `${row['TFINE No.'] || ''},${row['Plate_Number'] || ''},${row['Date'] || ''},${row['Time'] || ''},${row['Amount'] || ''},"${row['Description'] || ''}",${row['Dealer_Booking_Number'] || ''},${row['Booking_ID'] || ''},${row['Invoice_Date'] || ''},${row['Tax_Invoice_No'] || ''}`
+      `${row['TFINE No.'] || ''},${row['Plate_Number'] || ''},${row['Date'] || ''},${row['Time'] || ''},${row['Amount'] || ''},"${row['Description'] || ''}",${row['Dealer_Booking_Number'] || ''},${row['Booking_ID'] || ''},${row['Invoice_Date'] || ''},${row['Tax_Invoice_No'] || ''},"${row['Customer'] || ''}"`
     );
     
     const csvContent = headers + '\n' + csvRows.join('\n');

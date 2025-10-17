@@ -15,6 +15,7 @@ const downloadExcelTemplate = () => {
       'Plate No.',
       'Date',
       'End Date',
+      'Month',
       'Salik Trips',
       'Total Price',
       'Invoice_Date',
@@ -63,15 +64,27 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
   // Use Invoice_Date from Excel if available, otherwise use the passed invoiceDate
   const finalInvoiceDate = row['Invoice_Date'] ? formatExcelDate(row['Invoice_Date']) : invoiceDate;
 
-  // Determine the Salik Date text based on whether an end date exists
+  // Determine the Salik Date text - Month has priority over Date range
   let salikDateText = '';
-  const startDate = formatExcelDate(row['Date']);
-  const endDate = formatExcelDate(row['End Date']);
-  if (endDate && endDate !== '') {
-    salikDateText = ` Salik Date: ${startDate} - ${endDate}`;
+  
+  // Check for Month column - Month has priority over Date range
+  if (row['Month'] && row['Month'].toString().trim() !== '') {
+    salikDateText = ` Salik Month: ${row['Month']}`;
   } else {
-    salikDateText = ` Salik Date: ${startDate}`;
+    // Fallback to Date columns if available
+    const startDate = formatExcelDate(row['Date']);
+    const endDate = formatExcelDate(row['End Date']);
+    if (startDate) {
+      if (endDate && endDate !== '') {
+        salikDateText = ` Salik Date: ${startDate} - ${endDate}`;
+      } else {
+        salikDateText = ` Salik Date: ${startDate}`;
+      }
+    }
   }
+
+  // Check if Salik Trips column has data
+  const hasSalikTrips = row['Salik Trips'] && row['Salik Trips'].toString().trim() !== '';
 
   const invoiceNumber = row['INVOICE'] ? row['INVOICE'] : '';
 
@@ -112,18 +125,20 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
         new Paragraph({ children: [new TextRun({ text: 'Dear Sir,', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: 'We thank you for your business renting the below vehicle.', ...fontProps })] }),
         new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] }),
-        // Invoice Table
+        // Invoice Table - Dynamic based on available data
         new Table({
           rows: [
+            // Header Row
             new TableRow({
               height: { value: 800, rule: 'exact' },
               children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'No.', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 6000, type: 'dxa' }, verticalAlign: 'center' }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Description', ...fontProps, bold: true })], alignment: 'center' })], width: { size: hasSalikTrips ? 6000 : 8000, type: 'dxa' }, verticalAlign: 'center' }),
+                ...(hasSalikTrips ? [new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Salik Trips', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' })] : []),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Price', ...fontProps, bold: true })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, shading: { fill: 'F0F0F0' }, verticalAlign: 'center' }),
               ],
             }),
+            // Data Row
             new TableRow({
               children: [
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: '1', ...fontProps })], alignment: 'center' })], width: { size: 1000, type: 'dxa' }, verticalAlign: 'center' }),
@@ -135,17 +150,18 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                     new Paragraph({ children: [new TextRun({ text: ` Vehicle: ${row['Model'] || ''} - ${row['Plate No.'] || ''}`, ...fontProps })] }),
                     new Paragraph({ children: [new TextRun({ text: salikDateText, ...fontProps })] }),
                   ],
-                  width: { size: 6000, type: 'dxa' },
+                  width: { size: hasSalikTrips ? 6000 : 8000, type: 'dxa' },
                 }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Salik Trips'] || '0'} Trips`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' }),
+                ...(hasSalikTrips ? [new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${row['Salik Trips']} Trips`, ...fontProps })], alignment: 'center' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center' })] : []),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${formatPrice(row['Total Price'])}`, ...fontProps })], alignment: 'right' })], width: { size: 2000, type: 'dxa' }, verticalAlign: 'center', margins: { right: 144 } }),
               ],
             }),
+            // Total Row
             new TableRow({
               children: [
                 new TableCell({
                   children: [new Paragraph({ children: [new TextRun({ text: '', ...fontProps })] })],
-                  columnSpan: 2,
+                  columnSpan: hasSalikTrips ? 2 : 2,
                   borders: {
                     top: { style: 'single' },
                     left: { style: 'none', size: 4, color: '000000' },
@@ -153,14 +169,13 @@ const createInvoiceSection = (row: any, invoiceDate: string, trnNumber: string):
                     bottom: { style: 'none', size: 4, color: '000000' },
                   },
                 }),
-                new TableCell({
+                ...(hasSalikTrips ? [new TableCell({
                   children: [
                     new Paragraph({ children: [new TextRun({ text: 'TOTAL:', ...fontProps, bold: true, size: 30 })], alignment: 'center' }),
                   ],
                   shading: { fill: 'D9D9D9' },
-                  rowSpan: 2,
                   verticalAlign: 'center',
-                }),
+                })] : []),
                 new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `AED ${formatPrice(row['Total Price'])}`, ...fontProps, bold: true, size: 30 })], alignment: 'right' })], shading: { fill: 'D9D9D9' }, margins: { right: 144 } }),
               ],
             }),
