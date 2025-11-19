@@ -3,6 +3,130 @@ import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ISectionOptions } from 'docx';
 import { saveAs } from 'file-saver';
 
+// Component to preview Salik invoice
+const SalikInvoicePreview = ({ data }: { data: any }) => {
+  const { row, invoiceDate, trnNumber } = data;
+  
+  const formatExcelDate = (excelDate: any): string => {
+    if (!excelDate) return '';
+    if (typeof excelDate === 'number') {
+      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      return date.toLocaleDateString('en-GB');
+    }
+    if (typeof excelDate === 'string') {
+      const parsedDate = new Date(excelDate);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate.toLocaleDateString('en-GB');
+      }
+      return excelDate;
+    }
+    return '';
+  };
+
+  const finalInvoiceDate = row['Invoice_Date'] ? formatExcelDate(row['Invoice_Date']) : invoiceDate;
+  const invoiceNumber = row['INVOICE'] ? row['INVOICE'] : '';
+  
+  let salikDateText = '';
+  if (row['Month'] && row['Month'].toString().trim() !== '') {
+    salikDateText = `Salik Month: ${row['Month']}`;
+  } else {
+    const startDate = formatExcelDate(row['Date']);
+    const endDate = formatExcelDate(row['End Date']);
+    if (startDate) {
+      if (endDate && endDate !== '') {
+        salikDateText = `Salik Date: ${startDate} - ${endDate}`;
+      } else {
+        salikDateText = `Salik Date: ${startDate}`;
+      }
+    }
+  }
+
+  const hasSalikTrips = row['Salik Trips'] && row['Salik Trips'].toString().trim() !== '';
+  const formatPrice = (price: any): string => {
+    const numPrice = parseFloat(price) || 0;
+    return numPrice.toFixed(2);
+  };
+
+  return (
+    <div style={{ padding: 40, fontFamily: 'Calibri, Arial, sans-serif', fontSize: 11, lineHeight: 1.4, color: '#000', background: '#fff', minWidth: 600 }}>
+      <div style={{ textAlign: 'center', marginBottom: 30 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 'bold', margin: 0, fontFamily: 'Arial' }}>Tax Invoice</h1>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <span>Date: {finalInvoiceDate}</span>
+        <span>Ref: {invoiceNumber}</span>
+      </div>
+      
+      <div style={{ textAlign: 'right', marginBottom: 20 }}>
+        <span>TRN#: {trnNumber}</span>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Invygo Tech FZ-LLC</div>
+        <div>Dubai Internet City</div>
+        <div>Dubai, U.A.E.</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>SUB: Micro Lease Cars</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Dear Sir,</div>
+        <div>We thank you for your business renting the below vehicle.</div>
+      </div>
+      
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20, border: '1px solid #000' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f0f0f0' }}>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '8%' }}>No.</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: hasSalikTrips ? '54%' : '73%' }}>Description</th>
+            {hasSalikTrips && <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '19%', backgroundColor: '#f0f0f0' }}>Salik Trips</th>}
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '19%', backgroundColor: '#f0f0f0' }}>Total Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'center' }}>1</td>
+            <td style={{ border: '1px solid #000', padding: 8 }}>
+              <div>Name: {row['Customer'] || ''}</div>
+              <div>Booking ID: {row['Booking Number'] || ''}</div>
+              <div>R/A: {row['Contract No.'] || ''}</div>
+              <div>Vehicle: {row['Model'] || ''} - {row['Plate No.'] || ''}</div>
+              <div>{salikDateText}</div>
+            </td>
+            {hasSalikTrips && <td style={{ border: '1px solid #000', padding: 8, textAlign: 'center' }}>{row['Salik Trips']} Trips</td>}
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right' }}>{formatPrice(row['Total Price'])}</td>
+          </tr>
+          <tr>
+            <td colSpan={hasSalikTrips ? 2 : 2} style={{ border: '1px solid #000', borderTop: 'none', padding: 8 }}></td>
+            {hasSalikTrips && <td style={{ border: '1px solid #000', padding: 8, textAlign: 'center', backgroundColor: '#d9d9d9', fontWeight: 'bold', fontSize: 15 }}>TOTAL:</td>}
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right', backgroundColor: '#d9d9d9', fontWeight: 'bold', fontSize: 15 }}>AED {formatPrice(row['Total Price'])}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>General Conditions:</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Terms of Payment: within 7 days</div>
+      </div>
+      
+      <div style={{ marginTop: 40 }}>
+        <div>Thanking you and assuring you of our best co-operation and services at all times.</div>
+      </div>
+      
+      <div style={{ marginTop: 40 }}>
+        <div>Best Regards,</div>
+        <div style={{ marginTop: 20, fontWeight: 'bold' }}>Saudian Alwefaq Rent A Car</div>
+      </div>
+    </div>
+  );
+};
+
 // دالة لتحميل تمبليت Excel بالأعمدة المطلوبة لهذا الكود
 const downloadExcelTemplate = () => {
   const headers = [
@@ -213,11 +337,47 @@ function ExcelToWord() {
   const [status, setStatus] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [trnNumber, setTrnNumber] = useState('100397403500003');
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
 
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setExcelFile(e.target.files[0]);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!excelFile) {
+      setStatus('Please upload an Excel file first.');
+      return;
+    }
+
+    let invoiceDate = selectedDate;
+    if (!invoiceDate) {
+      const today = new Date();
+      invoiceDate = today.toISOString().split('T')[0];
+      setSelectedDate(invoiceDate);
+    }
+
+    if (!trnNumber) {
+      setStatus('Please enter the TRN number first.');
+      return;
+    }
+
+    setStatus('Loading preview...');
+
+    const data = await excelFile.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (rows.length > 0) {
+      setPreviewData({ row: rows[0], invoiceDate, trnNumber });
+      setShowPreview(true);
+      setStatus('');
+    } else {
+      setStatus('No data found in file.');
     }
   };
 
@@ -289,9 +449,21 @@ function ExcelToWord() {
 
 
 
-        <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 22, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 16, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Start Generating Files</button>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <button onClick={handlePreview} style={{ background: 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)', color: '#fff', padding: '16px 24px', fontSize: 18, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', flex: 1, boxShadow: '0 2px 8px rgba(255,152,0,0.10)' }}>Preview Invoice</button>
+          <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 24px', fontSize: 18, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', flex: 1, boxShadow: '0 2px 8px rgba(106,27,154,0.10)' }}>Generate Invoices</button>
+        </div>
         {status && <div style={{ marginTop: 18, color: '#b71c1c', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>{status}</div>}
       </div>
+      
+      {showPreview && previewData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 12, maxWidth: '90%', maxHeight: '90%', overflow: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowPreview(false)} style={{ position: 'absolute', top: 10, right: 15, background: '#f44336', color: '#fff', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 16, zIndex: 1001 }}>×</button>
+            <SalikInvoicePreview data={previewData} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

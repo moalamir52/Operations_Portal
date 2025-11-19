@@ -3,6 +3,105 @@ import * as XLSX from 'xlsx';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, ISectionOptions } from 'docx';
 import { saveAs } from 'file-saver';
 
+// Component to preview Traffic Fine invoice
+const TrafficInvoicePreview = ({ data }: { data: any }) => {
+  const { row, invoiceDate, trnNumber } = data;
+  
+  const formatExcelDate = (excelDate: any): string => {
+    if (!excelDate) return '';
+    if (typeof excelDate === 'number') {
+      const date = new Date((excelDate - 25569) * 86400 * 1000);
+      return date.toLocaleDateString('en-GB');
+    }
+    if (typeof excelDate === 'string') {
+      return excelDate;
+    }
+    return '';
+  };
+
+  const invoiceNumber = row['Tax_Invoice_No'] ? row['Tax_Invoice_No'] : '';
+  const formattedDate = formatExcelDate(row['Date']);
+
+  return (
+    <div style={{ padding: 40, fontFamily: 'Calibri, Arial, sans-serif', fontSize: 11, lineHeight: 1.4, color: '#000', background: '#fff', minWidth: 600 }}>
+      <div style={{ textAlign: 'center', marginBottom: 30 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 'bold', margin: 0, fontFamily: 'Arial' }}>Tax Invoice</h1>
+      </div>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <span>Date: {invoiceDate}</span>
+        <span>Ref: {invoiceNumber}</span>
+      </div>
+      
+      <div style={{ textAlign: 'right', marginBottom: 20 }}>
+        <span>TRN#: {trnNumber}</span>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Invygo Tech FZ-LLC</div>
+        <div>Dubai Internet City</div>
+        <div>Dubai, U.A.E.</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>SUB: Micro Lease Cars</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Traffic fine details given below;</div>
+      </div>
+      
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20, border: '1px solid #000' }}>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '8%' }}>No.</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '73%' }}>Description</th>
+            <th style={{ border: '1px solid #000', padding: 8, textAlign: 'center', width: '19%' }}>Total Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'center' }}>1</td>
+            <td style={{ border: '1px solid #000', padding: 8 }}>
+              <div style={{ fontWeight: 'bold' }}>{row['Customer'] || row['Customer_Name'] || 'N/A'}</div>
+              <div>Traffic Fine No: {row['TFINE No.'] || ''}</div>
+              <div>Date: {formattedDate}</div>
+              <div>Time: {row['Time'] || ''}</div>
+              <div>Booking ID: {row['Booking_ID'] || row['Dealer_Booking_Number'] || ''}</div>
+              <div>R/A: {row['Dealer_Booking_Number'] || ''}</div>
+              <div>Plate No. {row['Plate_Number'] || ''}</div>
+              <div>Description: {row['Description'] || ''}</div>
+            </td>
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right' }}>{parseFloat(row['Amount'] || '0').toFixed(2)} AED</td>
+          </tr>
+          <tr>
+            <td style={{ border: '1px solid #000', borderTop: 'none', padding: 8 }}></td>
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'center', backgroundColor: '#d9d9d9', fontWeight: 'bold', fontSize: 15 }}>TOTAL:</td>
+            <td style={{ border: '1px solid #000', padding: 8, textAlign: 'right', backgroundColor: '#d9d9d9', fontWeight: 'bold', fontSize: 15 }}>AED {parseFloat(row['Amount'] || '0').toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>General Conditions:</div>
+      </div>
+      
+      <div style={{ marginBottom: 20 }}>
+        <div>Terms of Payment: within 7 days</div>
+      </div>
+      
+      <div style={{ marginTop: 40 }}>
+        <div>Thanking you and assuring you of our best co-operation and services at all times.</div>
+      </div>
+      
+      <div style={{ marginTop: 40 }}>
+        <div>Best Regards,</div>
+        <div style={{ marginTop: 20, fontWeight: 'bold' }}>Saudian Alwefaq Rent A Car</div>
+      </div>
+    </div>
+  );
+};
+
 // Function to download CSV template with required columns for traffic fines
 const downloadCSVTemplate = () => {
   const headers = 'TFINE No.,Plate_Number,Date,Time,Amount,Description,Dealer_Booking_Number,Booking_ID,Invoice_Date,Tax_Invoice_No,Customer';
@@ -238,6 +337,8 @@ function TrafficFines() {
   const [selectedDate, setSelectedDate] = useState('');
   const [trnNumber, setTrnNumber] = useState('100397403500003');
   const [uploadedData, setUploadedData] = useState<any[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
 
 
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,6 +371,62 @@ function TrafficFines() {
     const blob = new Blob([csvContent], { type: 'text/csv' });
     saveAs(blob, 'Invygo Upload.csv');
     setStatus('Invygo Upload generated successfully!');
+  };
+
+  const handlePreview = async () => {
+    if (!excelFile) {
+      setStatus('Please upload a CSV file first.');
+      return;
+    }
+
+    let invoiceDate = selectedDate;
+    if (!invoiceDate) {
+      const today = new Date();
+      invoiceDate = today.toISOString().split('T')[0];
+      setSelectedDate(invoiceDate);
+    }
+
+    if (!trnNumber) {
+      setStatus('Please enter the TRN number first.');
+      return;
+    }
+
+    setStatus('Loading preview...');
+
+    const text = await excelFile.text();
+    const workbook = XLSX.read(text, { type: 'string' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    if (rows.length > 0) {
+      const formatExcelDate = (excelDate: any): string => {
+        if (!excelDate) return '';
+        if (typeof excelDate === 'number') {
+          const date = new Date((excelDate - 25569) * 86400 * 1000);
+          return date.toLocaleDateString('en-GB');
+        }
+        if (typeof excelDate === 'string') {
+          return excelDate;
+        }
+        return '';
+      };
+
+      let finalInvoiceDate = invoiceDate;
+      if (rows[0]['Invoice_Date']) {
+        const csvInvoiceDate = formatExcelDate(rows[0]['Invoice_Date']);
+        if (csvInvoiceDate) {
+          finalInvoiceDate = csvInvoiceDate;
+        }
+      } else {
+        finalInvoiceDate = new Date(invoiceDate + 'T00:00:00').toLocaleDateString('en-GB');
+      }
+
+      setPreviewData({ row: rows[0], invoiceDate: finalInvoiceDate, trnNumber });
+      setShowPreview(true);
+      setStatus('');
+    } else {
+      setStatus('No data found in file.');
+    }
   };
 
   const handleConvert = async () => {
@@ -372,12 +529,22 @@ function TrafficFines() {
 
 
 
-        <div style={{ display: 'flex', gap: 15, marginTop: 16 }}>
-          <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 0', fontSize: 18, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(106,27,154,0.10)', flex: 1 }}>Generate Word Invoices</button>
-          <button onClick={generateCSVMirror} style={{ background: 'linear-gradient(90deg, #e17055 0%, #d63031 100%)', color: '#fff', padding: '16px 0', fontSize: 18, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(214,48,49,0.10)', flex: 1 }}>Generate Invygo Upload</button>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+          <button onClick={handlePreview} style={{ background: 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)', color: '#fff', padding: '16px 12px', fontSize: 16, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', flex: 1, boxShadow: '0 2px 8px rgba(255,152,0,0.10)' }}>Preview Invoice</button>
+          <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 12px', fontSize: 16, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(106,27,154,0.10)', flex: 1 }}>Generate Word Invoices</button>
+          <button onClick={generateCSVMirror} style={{ background: 'linear-gradient(90deg, #e17055 0%, #d63031 100%)', color: '#fff', padding: '16px 12px', fontSize: 16, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(214,48,49,0.10)', flex: 1 }}>Generate Invygo Upload</button>
         </div>
         {status && <div style={{ marginTop: 18, color: '#b71c1c', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>{status}</div>}
       </div>
+      
+      {showPreview && previewData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 12, maxWidth: '90%', maxHeight: '90%', overflow: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowPreview(false)} style={{ position: 'absolute', top: 10, right: 15, background: '#f44336', color: '#fff', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 16, zIndex: 1001 }}>×</button>
+            <TrafficInvoicePreview data={previewData} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
