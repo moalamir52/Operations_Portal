@@ -364,7 +364,16 @@ function ReminderDue14Days() {
 }
 
 function App() {
-  const [view, setView] = useState("home");
+  const [view, setView] = useState(() => {
+    // استرجاع الصفحة المحفوظة من localStorage أو العودة للصفحة الرئيسية
+    return localStorage.getItem('currentView') || 'home';
+  });
+
+  // حفظ الصفحة الحالية في localStorage عند تغييرها
+  const handleViewChange = (newView) => {
+    setView(newView);
+    localStorage.setItem('currentView', newView);
+  };
 
   const containerStyle = {
     fontFamily: "Arial, sans-serif",
@@ -437,7 +446,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("reminder")}
+            onClick={() => handleViewChange("reminder")}
           >
             📢 Reminder
           </button>
@@ -445,7 +454,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("vlookup")}
+            onClick={() => handleViewChange("vlookup")}
           >
             🔍 Contracts
           </button>
@@ -453,7 +462,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("fleet")}
+            onClick={() => handleViewChange("fleet")}
           >
             🚗 Fleet
           </button>
@@ -461,7 +470,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("kilometer")}
+            onClick={() => handleViewChange("kilometer")}
           >
             🧮 Mileage Calculator
           </button>
@@ -469,7 +478,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("Salik")}
+            onClick={() => handleViewChange("Salik")}
           >
             🧾 Salik
           </button>
@@ -477,7 +486,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("parking")}
+            onClick={() => handleViewChange("parking")}
           >
             🅿️ Parking
           </button>
@@ -485,7 +494,7 @@ function App() {
             style={buttonStyle}
             onMouseEnter={(e) => Object.assign(e.target.style, buttonHoverStyle)}
             onMouseLeave={(e) => Object.assign(e.target.style, buttonStyle)}
-            onClick={() => setView("traffic")}
+            onClick={() => handleViewChange("traffic")}
           >
             🚦 Traffic Fines
           </button>
@@ -494,7 +503,7 @@ function App() {
 
       {view === "reminder" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -512,7 +521,7 @@ function App() {
 
       {view === "vlookup" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -530,7 +539,7 @@ function App() {
 
       {view === "fleet" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -548,7 +557,7 @@ function App() {
 
       {view === "kilometer" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -566,7 +575,7 @@ function App() {
 
       {view === "Salik" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -584,7 +593,7 @@ function App() {
 
       {view === "parking" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
@@ -602,7 +611,7 @@ function App() {
 
       {view === "traffic" && (
         <>
-          <button onClick={() => setView("home")} style={{
+          <button onClick={() => handleViewChange("home")} style={{
             padding: "15px 30px",
             margin: "15px",
             fontSize: "16px",
