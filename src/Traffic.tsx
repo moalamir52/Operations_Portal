@@ -529,6 +529,11 @@ function TrafficFines() {
 
 
 
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label htmlFor="trn-input" style={{ fontSize: 18, fontWeight: 500, color: '#333' }}>TRN Number:</label>
+          <input id="trn-input" type="text" value={trnNumber} onChange={(e) => setTrnNumber(e.target.value)} style={{ fontSize: 18, padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
+        </div>
+
         <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
           <button onClick={handlePreview} style={{ background: 'linear-gradient(90deg, #ff9800 0%, #f57c00 100%)', color: '#fff', padding: '16px 12px', fontSize: 16, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', flex: 1, boxShadow: '0 2px 8px rgba(255,152,0,0.10)' }}>Preview Invoice</button>
           <button onClick={handleConvert} style={{ background: 'linear-gradient(90deg, #6a1b9a 0%, #8e24aa 100%)', color: '#fff', padding: '16px 12px', fontSize: 16, fontWeight: 600, border: 'none', borderRadius: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(106,27,154,0.10)', flex: 1 }}>Generate Word Invoices</button>
